@@ -5,13 +5,6 @@ _(none)_
 
 ## 🟡 Open Issues
 
-### Phase 4 (Resources, Prompts & Polish)
-- [ ] #P4-1: MCP Resources (`kioku://memories/*`, `kioku://entities/*`)
-- [ ] #P4-2: MCP Prompts (`reflect_on_day`, `weekly_review`, `find_why`)
-- [ ] #P4-3: `get_timeline` tool
-- [ ] #P4-4: `get_life_patterns` tool
-- [ ] #P4-5: Error handling & logging
-
 ### Phase 5 (OpenClaw Integration)
 - [ ] #P5-1: Create `kioku` agent in OpenClaw
 - [ ] #P5-2: Write SOUL.md for Kioku
@@ -36,3 +29,8 @@ _(none)_
 - [x] #P3-4: RRF 3-way fusion — 2026-02-22
 - [x] #P3-5: `recall_related` tool — 2026-02-22
 - [x] #P3-6: `explain_connection` tool — 2026-02-22
+- [x] #P4-1: MCP Resources (`kioku://memories/*`, `kioku://entities/*`) — 2026-02-22
+- [x] #P4-2: MCP Prompts (`reflect_on_day`, `weekly_review`, `find_why`) — 2026-02-22
+- [x] #P4-3: `get_timeline` tool — 2026-02-22
+- [x] #P4-4: `get_life_patterns` tool — 2026-02-22
+- [x] #P4-5: Error handling & logging — 2026-02-22

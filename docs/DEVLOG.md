@@ -61,3 +61,24 @@
 | `explain_connection` | Phase 3 |
 
 ---
+
+### Phase 4: Resources, Prompts & Polish ✅
+
+**Completed:**
+- [x] Implemented MCP Resources: `kioku://memories/{date}` and `kioku://entities/{entity}` for direct Markdown/Profile reading.
+- [x] Implemented MCP Prompts: `reflect_on_day`, `analyze_relationships`, `weekly_review`.
+- [x] New Tool: `get_timeline` — fetch chronologically ordered events.
+- [x] New Tool: `get_life_patterns` — analyze tags and moods over time using frequency counting.
+- [x] Test coverage: 19 integration tests spanning all updated tools, resources, and prompts.
+- [x] Fixed ChromaDB connection issue where vector metrics weren't persisting due to implicit ephemeral client.
+- [x] Pushed to GitHub.
+
+**Total: 8 MCP Tools + 3 Prompts + 2 Resources**
+| Features | Added In |
+|---|---|
+| `get_timeline` | Phase 4 |
+| `get_life_patterns` | Phase 4 |
+| `kioku://memories/*` | Phase 4 |
+| `kioku://entities/*` | Phase 4 |
+
+---
