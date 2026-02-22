@@ -35,7 +35,11 @@ except Exception:
     log.warning("Ollama not available, using FakeEmbedder (no semantic search quality)")
     embedder = FakeEmbedder()
 
-vector_store = VectorStore(embedder=embedder)
+vector_store = VectorStore(
+    embedder=embedder,
+    host=settings.chroma_host,
+    port=settings.chroma_port,
+)
 
 # Knowledge graph — try FalkorDB, fallback to InMemoryGraphStore
 try:
