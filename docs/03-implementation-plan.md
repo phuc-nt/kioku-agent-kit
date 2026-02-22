@@ -99,7 +99,7 @@ kioku-mcp/
 
 ---
 
-### Phase 4 — Resources, Prompts & Polish
+### Phase 4 — Resources, Prompts & Polish (DONE)
 > Mục tiêu: Hoàn thiện MCP interface, thêm resources và prompts
 
 **Tasks:**

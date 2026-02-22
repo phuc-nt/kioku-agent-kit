@@ -69,13 +69,22 @@ src/kioku/
 | `search_memories` | Tìm kiếm tri-hybrid |
 | `get_memories_by_date` | Xem nhật ký theo ngày |
 | `list_memory_dates` | Liệt kê các ngày có nhật ký |
+| `recall_related` | Truy xuất mạng quan hệ đa chiều từ một người/sự vật |
+| `explain_connection` | Phân tích mối liên kết giữa 2 thực thể |
+| `get_timeline` | Lấy dòng thời gian các sự kiện |
+| `get_life_patterns` | Thống kê xu hướng tâm trạng và chủ đề |
+
+## MCP Resources & Prompts
+
+- **Resources**: `kioku://memories/{date}`, `kioku://entities/{entity}`
+- **Prompts**: `reflect_on_day`, `analyze_relationships`, `weekly_review`
 
 ## Roadmap
 
 - [x] **Phase 1** — Save + Keyword Search (BM25)
-- [ ] **Phase 2** — Vector Search (ChromaDB + Ollama)
-- [ ] **Phase 3** — Knowledge Graph (FalkorDB + Entity Extraction)
-- [ ] **Phase 4** — MCP Resources, Prompts & Polish
+- [x] **Phase 2** — Vector Search (ChromaDB + Ollama)
+- [x] **Phase 3** — Knowledge Graph (FalkorDB + Entity Extraction)
+- [x] **Phase 4** — MCP Resources, Prompts & Polish
 - [ ] **Phase 5** — OpenClaw Integration
 
 ## Docs
