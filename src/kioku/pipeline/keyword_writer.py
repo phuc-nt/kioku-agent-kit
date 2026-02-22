@@ -25,7 +25,8 @@ class KeywordIndex:
     def __init__(self, db_path: Path):
         self.db_path = db_path
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(str(db_path))
+        # FastMCP Async Server calls synchronous tools in a background worker thread.
+        self.conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self._create_tables()
 
     def _create_tables(self) -> None:
