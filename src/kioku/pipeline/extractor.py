@@ -45,20 +45,20 @@ class ExtractionResult:
     relationships: list[Relationship] = field(default_factory=list)
 
 
-EXTRACTION_PROMPT = """Extract entities and relationships from this personal diary entry.
+EXTRACTION_PROMPT_PREFIX = """Extract entities and relationships from this personal diary entry.
 
 Return a JSON object with:
-- "entities": list of {"name": string, "type": "PERSON"|"PLACE"|"EVENT"|"EMOTION"|"TOPIC"|"PRODUCT"}
-- "relationships": list of {"source": string, "target": string, "type": "CAUSAL"|"EMOTIONAL"|"TEMPORAL"|"TOPICAL"|"INVOLVES", "weight": 0.0-1.0, "evidence": string}
+- "entities": array of objects with "name" (string) and "type" ("PERSON"|"PLACE"|"EVENT"|"EMOTION"|"TOPIC"|"PRODUCT")
+- "relationships": array of objects with "source" (string), "target" (string), "type" ("CAUSAL"|"EMOTIONAL"|"TEMPORAL"|"TOPICAL"|"INVOLVES"), "weight" (0.0-1.0), "evidence" (string)
 
 Rules:
 - Extract ALL people, places, emotions, events, and topics mentioned
 - "weight" reflects how strong the connection is (0.1=weak, 1.0=very strong)
 - "evidence" is the exact quote from the text that supports this relationship
 - Keep entity names short and consistent (e.g., "Hùng" not "sếp Hùng")
-- Return ONLY the JSON object, no markdown
+- Return ONLY valid JSON, no markdown, no explanation
 
-Text: {text}"""
+Text: """
 
 
 class Extractor(Protocol):
@@ -70,7 +70,7 @@ class Extractor(Protocol):
 class ClaudeExtractor:
     """Extract entities and relationships using Claude Haiku."""
 
-    def __init__(self, api_key: str, model: str = "claude-haiku-4-5-20241022"):
+    def __init__(self, api_key: str, model: str = "claude-3-haiku-20240307"):
         self.model = model
         self._client = None
         self._api_key = api_key
@@ -88,7 +88,7 @@ class ClaudeExtractor:
             response = self.client.messages.create(
                 model=self.model,
                 max_tokens=1024,
-                messages=[{"role": "user", "content": EXTRACTION_PROMPT.format(text=text)}],
+                messages=[{"role": "user", "content": EXTRACTION_PROMPT_PREFIX + text}],
             )
             content = response.content[0].text
             return self._parse_response(content)
@@ -104,24 +104,33 @@ class ClaudeExtractor:
             if text.startswith("```"):
                 text = text.split("\n", 1)[1]
                 text = text.rsplit("```", 1)[0]
+                text = text.strip()
+
+            # Find JSON object — Claude may add preamble text
+            start = text.find("{")
+            end = text.rfind("}")
+            if start != -1 and end != -1:
+                text = text[start : end + 1]
 
             data = json.loads(text)
             entities = [
                 Entity(name=e["name"], type=e["type"])
                 for e in data.get("entities", [])
+                if "name" in e and "type" in e
             ]
             relationships = [
                 Relationship(
                     source=r["source"],
                     target=r["target"],
-                    rel_type=r["type"],
+                    rel_type=r.get("type", "TOPICAL"),
                     weight=r.get("weight", 0.5),
                     evidence=r.get("evidence", ""),
                 )
                 for r in data.get("relationships", [])
+                if "source" in r and "target" in r
             ]
             return ExtractionResult(entities=entities, relationships=relationships)
-        except (json.JSONDecodeError, KeyError) as e:
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
             log.warning("Failed to parse extraction response: %s", e)
             return ExtractionResult()
 

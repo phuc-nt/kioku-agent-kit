@@ -37,6 +37,11 @@ class Settings(BaseSettings):
 
     model_config = {"env_prefix": "KIOKU_", "env_file": ".env", "extra": "ignore"}
 
+    def model_post_init(self, __context) -> None:
+        """Expand ~ in paths after loading from env."""
+        object.__setattr__(self, "memory_dir", Path(os.path.expanduser(str(self.memory_dir))))
+        object.__setattr__(self, "data_dir", Path(os.path.expanduser(str(self.data_dir))))
+
     def ensure_dirs(self) -> None:
         """Create required directories if they don't exist."""
         self.memory_dir.mkdir(parents=True, exist_ok=True)

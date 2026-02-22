@@ -166,21 +166,36 @@ class FalkorGraphStore:
 
     def find_path(self, source: str, target: str) -> GraphSearchResult:
         """Find shortest path between two entities."""
-        result = self.graph.query(
-            """MATCH (a:Entity {name: $source}), (b:Entity {name: $target})
-               MATCH path = shortestPath((a)-[*..5]->(b))
-               RETURN [n IN nodes(path) | n.name] AS names,
-                      [n IN nodes(path) | n.type] AS types,
-                      [r IN relationships(path) | r.type] AS rel_types,
-                      [r IN relationships(path) | r.evidence] AS evidences""",
-            {"source": source, "target": target},
-        )
+        try:
+            result = self.graph.query(
+                """MATCH (a:Entity {name: $source}), (b:Entity {name: $target})
+                   WITH shortestPath((a)-[*..5]->(b)) AS path
+                   WHERE path IS NOT NULL
+                   RETURN [n IN nodes(path) | n.name] AS names,
+                          [n IN nodes(path) | n.type] AS types,
+                          [r IN relationships(path) | r.type] AS rel_types,
+                          [r IN relationships(path) | r.evidence] AS evidences""",
+                {"source": source, "target": target},
+            )
+        except Exception:
+            # Fallback: try undirected
+            try:
+                result = self.graph.query(
+                    """MATCH (a:Entity {name: $source})-[r:RELATES*1..5]-(b:Entity {name: $target})
+                       RETURN [n IN nodes(path) | n.name] AS names
+                       LIMIT 1""",
+                    {"source": source, "target": target},
+                )
+            except Exception:
+                return GraphSearchResult()
 
         nodes = []
         edges = []
         paths = []
         for row in result.result_set:
-            names, types, rel_types, evidences = row[0], row[1], row[2], row[3]
+            names, types = row[0], row[1]
+            rel_types = row[2] if len(row) > 2 else []
+            evidences = row[3] if len(row) > 3 else []
             paths.append(names)
             for i, name in enumerate(names):
                 nodes.append(GraphNode(name=name, type=types[i] if i < len(types) else ""))
