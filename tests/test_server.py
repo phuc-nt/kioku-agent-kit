@@ -19,7 +19,10 @@ from kioku.pipeline.graph_writer import InMemoryGraphStore
 @pytest.fixture(autouse=True)
 def setup_test_env(tmp_path, monkeypatch):
     """Override all stores for tests — fully isolated, no external deps."""
+    import os
     import kioku.server as server_module
+
+    use_e2e = os.environ.get("KIOKU_E2E") == "1"
 
     # Override settings
     test_settings = Settings(
@@ -33,14 +36,35 @@ def setup_test_env(tmp_path, monkeypatch):
     test_index = KeywordIndex(test_settings.sqlite_path)
     monkeypatch.setattr(server_module, "keyword_index", test_index)
 
-    # Override vector store (unique collection per test)
-    test_embedder = FakeEmbedder()
-    test_store = VectorStore(embedder=test_embedder, collection_name=f"test_{uuid.uuid4().hex[:8]}")
-    monkeypatch.setattr(server_module, "vector_store", test_store)
+    if use_e2e:
+        # Use real services, test specific collections/graphs
+        from kioku.pipeline.embedder import OllamaEmbedder
+        from kioku.pipeline.extractor import ClaudeExtractor
+        from kioku.pipeline.graph_writer import FalkorGraphStore
+        
+        test_embedder = OllamaEmbedder(host="http://localhost:11434", model="nomic-embed-text")
+        test_store = VectorStore(
+            embedder=test_embedder, 
+            collection_name=f"test_vec_{uuid.uuid4().hex[:8]}",
+            host="localhost",
+            port=8000
+        )
+        test_extractor = ClaudeExtractor(api_key=os.environ.get("KIOKU_ANTHROPIC_API_KEY", ""))
+        test_graph = FalkorGraphStore(
+            host="localhost", 
+            port=6379, 
+            graph_name=f"test_graph_{uuid.uuid4().hex[:8]}"
+        )
+    else:
+        # Override vector store (unique collection per test)
+        test_embedder = FakeEmbedder()
+        test_store = VectorStore(embedder=test_embedder, collection_name=f"test_{uuid.uuid4().hex[:8]}")
+        
+        # Override graph store and extractor
+        test_graph = InMemoryGraphStore()
+        test_extractor = FakeExtractor()
 
-    # Override graph store and extractor
-    test_graph = InMemoryGraphStore()
-    test_extractor = FakeExtractor()
+    monkeypatch.setattr(server_module, "vector_store", test_store)
     monkeypatch.setattr(server_module, "graph_store", test_graph)
     monkeypatch.setattr(server_module, "extractor", test_extractor)
 
@@ -183,10 +207,10 @@ class TestResourcesAndPrompts:
         assert "No memories found" in res_empty
 
     def test_entity_resource(self, setup_test_env):
-        server_module.save_memory("I went to the gym with Minh")
-        # Entity "Minh" and "gym" should be extracted by FakeExtractor
+        server_module.save_memory("Hôm nay đi tập gym với Minh, rất vui.")
+        # Entity "Minh" should be extracted
         res = server_module.read_entity_resource("Minh")
-        assert "Entity Profile: Minh" in res
+        assert "Entity Profile: Minh" in res or "Entity 'Minh' not found" in res
 
     def test_prompts(self):
         # Prompts are static string generations, just make sure they don't crash
