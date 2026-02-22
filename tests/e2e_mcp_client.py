@@ -1,6 +1,7 @@
 import asyncio
 import os
 import sys
+import datetime
 
 # Đảm bảo có thể import mcp.client
 try:
@@ -59,27 +60,69 @@ async def run_e2e():
                 recall_res = await session.call_tool("recall_related", {"entity": "Mai", "max_hops": 2})
                 print(f"🔹 Result: {recall_res.content[0].text if recall_res.content else recall_res}")
 
-                # 6. Liệt kê Resources
+                today_str = datetime.date.today().isoformat()
+
+                # 6. Test Tool: get_memories_by_date
+                print(f"\n[TEST] Tool: get_memories_by_date for {today_str}")
+                by_date_res = await session.call_tool("get_memories_by_date", {"date": today_str})
+                print(f"🔹 Result: {by_date_res.content[0].text if by_date_res.content else by_date_res}")
+
+                # 7. Test Tool: list_memory_dates
+                print("\n[TEST] Tool: list_memory_dates")
+                dates_res = await session.call_tool("list_memory_dates", {})
+                print(f"🔹 Result: {dates_res.content[0].text if dates_res.content else dates_res}")
+
+                # 8. Test Tool: explain_connection
+                print("\n[TEST] Tool: explain_connection")
+                explain_res = await session.call_tool("explain_connection", {"entity_a": "Mai", "entity_b": "OpenClaw"})
+                print(f"🔹 Result: {explain_res.content[0].text if explain_res.content else explain_res}")
+
+                # 9. Test Tool: get_life_patterns
+                print("\n[TEST] Tool: get_life_patterns")
+                patterns_res = await session.call_tool("get_life_patterns", {"days_back": 30})
+                print(f"🔹 Result: {patterns_res.content[0].text if patterns_res.content else patterns_res}")
+
+                # 10. Liệt kê Resources
                 resources_response = await session.list_resources()
                 res_uris = [r.uri for r in resources_response.resources]
                 print(f"\n✅ Tìm thấy Resource URIs mapping: {', '.join(res_uris)}")
 
-                # 7. Test Resource: kioku://entities/{entity}
+                # 11. Test Resource: kioku://entities/{entity}
                 print("\n[TEST] Resource: kioku://entities/Mai")
                 entity_res = await session.read_resource("kioku://entities/Mai")
                 # Format của Resource format trả về tuỳ thuộc vào SDK, ta in raw
                 print(f"🔹 Result: {entity_res.contents[0].text if hasattr(entity_res, 'contents') else entity_res}")
 
-                # 8. Liệt kê Prompts
+                # 12. Test Resource: kioku://memories/{date}
+                print(f"\n[TEST] Resource: kioku://memories/{today_str}")
+                try:
+                    mem_res = await session.read_resource(f"kioku://memories/{today_str}")
+                    print(f"🔹 Result: {mem_res.contents[0].text if hasattr(mem_res, 'contents') else mem_res}")
+                except Exception as e:
+                    print(f"🔹 Result: error reading resource ({e})")
+
+                # 13. Liệt kê Prompts
                 prompts_response = await session.list_prompts()
                 prompt_names = [p.name for p in prompts_response.prompts]
                 print(f"\n✅ Tìm thấy Prompts: {', '.join(prompt_names)}")
 
-                # 9. Test Prompt: analyze_relationships
+                # 14. Test Prompt: analyze_relationships
                 print("\n[TEST] Prompt: analyze_relationships")
                 prompt_req = await session.get_prompt("analyze_relationships", {"entity_name": "Mai"})
                 print("🔹 Prompt Input (Dành cho LLM):")
                 print(prompt_req.messages[0].content.text if prompt_req.messages else prompt_req)
+
+                # 15. Test Prompt: reflect_on_day
+                print("\n[TEST] Prompt: reflect_on_day")
+                reflect_req = await session.get_prompt("reflect_on_day", {"date": today_str})
+                print("🔹 Prompt Input (Dành cho LLM):")
+                print(reflect_req.messages[0].content.text if reflect_req.messages else reflect_req)
+
+                # 16. Test Prompt: weekly_review
+                print("\n[TEST] Prompt: weekly_review")
+                weekly_req = await session.get_prompt("weekly_review", {})
+                print("🔹 Prompt Input (Dành cho LLM):")
+                print(weekly_req.messages[0].content.text if weekly_req.messages else weekly_req)
 
                 print("\n🎉 Tất cả bài test Client E2E chạy thành công!")
                 
