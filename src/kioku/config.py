@@ -11,14 +11,25 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings, loaded from environment variables."""
 
+    # User context for multi-tenant isolation
+    user_id: str = "default"
+
     # Paths
-    memory_dir: Path = Path(os.path.expanduser("~/.kioku/memory"))
-    data_dir: Path = Path(os.path.expanduser("~/.kioku/data"))
+    memory_dir: Path | None = None
+    data_dir: Path | None = None
 
     # SQLite FTS5
     @property
     def sqlite_path(self) -> Path:
-        return self.data_dir / "kioku_fts.db"
+        return Path(str(self.data_dir)) / "kioku_fts.db"
+
+    @property
+    def chroma_collection(self) -> str:
+        return "memories" if self.user_id == "default" else f"memories_{self.user_id}"
+
+    @property
+    def falkordb_graph(self) -> str:
+        return "kioku_kg" if self.user_id == "default" else f"kioku_kg_{self.user_id}"
 
     # ChromaDB (Phase 2)
     chroma_host: str = "localhost"
@@ -39,13 +50,24 @@ class Settings(BaseSettings):
 
     def model_post_init(self, __context) -> None:
         """Expand ~ in paths after loading from env."""
-        object.__setattr__(self, "memory_dir", Path(os.path.expanduser(str(self.memory_dir))))
-        object.__setattr__(self, "data_dir", Path(os.path.expanduser(str(self.data_dir))))
+        base_dir = f"~/.kioku/users/{self.user_id}" if self.user_id != "default" else "~/.kioku"
+        # Since pydantic might load "" or "." if we clear env vars, let's harden the check
+        if not self.memory_dir or str(self.memory_dir) in ("", "."):
+            object.__setattr__(self, "memory_dir", Path(os.path.expanduser(f"{base_dir}/memory")))
+        else:
+            object.__setattr__(self, "memory_dir", Path(os.path.expanduser(str(self.memory_dir))))
+
+        if not self.data_dir or str(self.data_dir) in ("", "."):
+            object.__setattr__(self, "data_dir", Path(os.path.expanduser(f"{base_dir}/data")))
+        else:
+            object.__setattr__(self, "data_dir", Path(os.path.expanduser(str(self.data_dir))))
 
     def ensure_dirs(self) -> None:
         """Create required directories if they don't exist."""
-        self.memory_dir.mkdir(parents=True, exist_ok=True)
-        self.data_dir.mkdir(parents=True, exist_ok=True)
+        if self.memory_dir:
+            self.memory_dir.mkdir(parents=True, exist_ok=True)
+        if self.data_dir:
+            self.data_dir.mkdir(parents=True, exist_ok=True)
 
 
 # Singleton

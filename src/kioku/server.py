@@ -37,6 +37,7 @@ except Exception:
 
 vector_store = VectorStore(
     embedder=embedder,
+    collection_name=settings.chroma_collection,
     host=settings.chroma_host,
     port=settings.chroma_port,
 )
@@ -44,7 +45,9 @@ vector_store = VectorStore(
 # Knowledge graph — try FalkorDB, fallback to InMemoryGraphStore
 try:
     graph_store = FalkorGraphStore(
-        host=settings.falkordb_host, port=settings.falkordb_port
+        host=settings.falkordb_host, 
+        port=settings.falkordb_port,
+        graph_name=settings.falkordb_graph,
     )
     # Test connection by accessing the graph property
     _ = graph_store.graph
