@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from datetime import datetime, timezone, timedelta
 
 from fastmcp import FastMCP
@@ -10,12 +11,28 @@ from fastmcp import FastMCP
 from kioku.config import settings
 from kioku.storage.markdown import save_entry, read_entries, list_dates
 from kioku.pipeline.keyword_writer import KeywordIndex
+from kioku.pipeline.embedder import OllamaEmbedder, FakeEmbedder
+from kioku.pipeline.vector_writer import VectorStore
 from kioku.search.bm25 import bm25_search
+from kioku.search.semantic import vector_search
 from kioku.search.reranker import rrf_rerank
+
+log = logging.getLogger(__name__)
 
 # Initialize
 settings.ensure_dirs()
 keyword_index = KeywordIndex(settings.sqlite_path)
+
+# Vector store — try Ollama, fallback to FakeEmbedder
+try:
+    embedder = OllamaEmbedder(host=settings.ollama_host, model=settings.ollama_model)
+    embedder.embed("test")  # Test connection
+    log.info("Using Ollama embedder (%s)", settings.ollama_model)
+except Exception:
+    log.warning("Ollama not available, using FakeEmbedder (no semantic search quality)")
+    embedder = FakeEmbedder()
+
+vector_store = VectorStore(embedder=embedder)
 
 # Create MCP server
 mcp = FastMCP(
@@ -56,7 +73,18 @@ def save_memory(
         content_hash=content_hash,
     )
 
-    # Phase 2: embed + write to ChromaDB
+    # 3. Index in ChromaDB (vector search)
+    try:
+        vector_store.add(
+            content=text,
+            date=date,
+            timestamp=entry.timestamp,
+            mood=mood or "",
+            tags=tags,
+        )
+    except Exception as e:
+        log.warning("Vector indexing failed: %s", e)
+
     # Phase 3: extract entities + write to FalkorDB
 
     return {
@@ -76,10 +104,10 @@ def search_memories(
     date_from: str | None = None,
     date_to: str | None = None,
 ) -> dict:
-    """Search through all saved memories using keyword matching (BM25).
+    """Search through all saved memories using hybrid BM25 + semantic vector search.
 
-    Finds memories by meaning and keywords. In future phases, will also use
-    semantic vector search and knowledge graph traversal.
+    Combines keyword matching (exact terms) with semantic similarity (meaning)
+    using RRF reranking for best results.
 
     Args:
         query: What to search for. Can be a question or keywords.
@@ -87,14 +115,16 @@ def search_memories(
         date_from: Optional start date filter (YYYY-MM-DD).
         date_to: Optional end date filter (YYYY-MM-DD).
     """
-    # Phase 1: BM25 only
+    # BM25 keyword search
     bm25_results = bm25_search(keyword_index, query, limit=limit * 3)
 
-    # Phase 2: add vector_results
+    # Semantic vector search
+    vec_results = vector_search(vector_store, query, limit=limit * 3)
+
     # Phase 3: add graph_results
 
-    # RRF rerank (currently single source, prepared for multi-source)
-    results = rrf_rerank(bm25_results, limit=limit)
+    # RRF rerank — fuse BM25 + Vector
+    results = rrf_rerank(bm25_results, vec_results, limit=limit)
 
     # Apply date filters if provided
     if date_from or date_to:
