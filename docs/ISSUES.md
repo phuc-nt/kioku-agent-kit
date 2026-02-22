@@ -5,15 +5,6 @@ _(none)_
 
 ## 🟡 Open Issues
 
-### Phase 3 (Knowledge Graph)
-- [ ] #P3-1: Implement `pipeline/extractor.py` (LLM entity extraction)
-
-- [ ] #P3-2: Implement `pipeline/graph_writer.py` (FalkorDB)
-- [ ] #P3-3: Implement `search/graph.py` (multi-hop traversal)
-- [ ] #P3-4: Update `search/reranker.py` (RRF 3-way)
-- [ ] #P3-5: Implement `recall_related` tool
-- [ ] #P3-6: Implement `explain_connection` tool
-
 ### Phase 4 (Resources, Prompts & Polish)
 - [ ] #P4-1: MCP Resources (`kioku://memories/*`, `kioku://entities/*`)
 - [ ] #P4-2: MCP Prompts (`reflect_on_day`, `weekly_review`, `find_why`)
@@ -39,3 +30,9 @@ _(none)_
 - [x] #P2-4: `search/semantic.py` — 2026-02-22
 - [x] #P2-5: RRF fusion BM25 + Vector — 2026-02-22
 - [x] #P2-6: Hybrid `search_memories` tool — 2026-02-22
+- [x] #P3-1: `pipeline/extractor.py` (LLM entity extraction) — 2026-02-22
+- [x] #P3-2: `pipeline/graph_writer.py` (FalkorDB + InMemory) — 2026-02-22
+- [x] #P3-3: `search/graph.py` (multi-hop traversal) — 2026-02-22
+- [x] #P3-4: RRF 3-way fusion — 2026-02-22
+- [x] #P3-5: `recall_related` tool — 2026-02-22
+- [x] #P3-6: `explain_connection` tool — 2026-02-22
