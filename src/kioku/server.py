@@ -302,6 +302,176 @@ def list_memory_dates() -> dict:
     }
 
 
+@mcp.tool()
+def get_timeline(start_date: str | None = None, end_date: str | None = None, limit: int = 50) -> dict:
+    """Get a chronologically ordered sequence of memories.
+
+    Args:
+        start_date: Start date (YYYY-MM-DD) inclusive.
+        end_date: End date (YYYY-MM-DD) inclusive.
+        limit: Max number of entries to return (default 50).
+    """
+    dates = list_dates(settings.memory_dir)
+    if start_date:
+        dates = [d for d in dates if d >= start_date]
+    if end_date:
+        dates = [d for d in dates if d <= end_date]
+
+    # Read from most recent backward, or oldest forward? Timeline usually means chronological.
+    # Let's read chronologically but limit to recent (so we slice at the end).
+    all_entries = []
+    # Read backward to easily apply limit to most recent ones inside that range
+    for d in reversed(dates):
+        entries = read_entries(settings.memory_dir, date=d)
+        for e in reversed(entries):
+            all_entries.append({
+                "date": d,
+                "timestamp": e.timestamp,
+                "mood": e.mood,
+                "tags": e.tags,
+                "text": e.text
+            })
+            if len(all_entries) >= limit:
+                break
+        if len(all_entries) >= limit:
+            break
+
+    # Reverse back to chronological
+    all_entries.reverse()
+
+    return {
+        "count": len(all_entries),
+        "timeline": all_entries
+    }
+
+
+@mcp.tool()
+def get_life_patterns(days_back: int = 30) -> dict:
+    """Analyze memory entries over recent days to find patterns in mood and tags.
+    
+    Args:
+        days_back: Number of days to look back for pattern extraction.
+    """
+    dates = list_dates(settings.memory_dir)[-days_back:]
+    
+    mood_counts = {}
+    tag_counts = {}
+    total_entries = 0
+    
+    for d in dates:
+        entries = read_entries(settings.memory_dir, date=d)
+        for e in entries:
+            total_entries += 1
+            if e.mood:
+                mood_counts[e.mood] = mood_counts.get(e.mood, 0) + 1
+            if e.tags:
+                for t in e.tags:
+                    tag_counts[t] = tag_counts.get(t, 0) + 1
+                    
+    # Sort by frequency
+    sorted_moods = sorted(mood_counts.items(), key=lambda x: x[1], reverse=True)
+    sorted_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)
+    
+    return {
+        "analyzed_days": len(dates),
+        "total_entries": total_entries,
+        "frequent_moods": [{"mood": m, "count": c} for m, c in sorted_moods[:5]],
+        "frequent_topics": [{"tag": t, "count": c} for t, c in sorted_tags[:10]]
+    }
+
+
+# ─── Resources ─────────────────────────────────────────────────────────────
+
+@mcp.resource("kioku://memories/{date}")
+def read_memory_resource(date: str) -> str:
+    """Read the raw markdown file containing all memories for a specific date."""
+    filepath = settings.memory_dir / f"{date}.md"
+    if not filepath.exists():
+        return f"No memories found for date {date}."
+    return filepath.read_text()
+
+
+@mcp.resource("kioku://entities/{entity}")
+def read_entity_resource(entity: str) -> str:
+    """Read a comprehensive profile of an entity based on the knowledge graph."""
+    result = graph_store.traverse(entity, max_hops=2, limit=50)
+    
+    if not result.nodes:
+        return f"Entity '{entity}' not found in the knowledge graph."
+        
+    # Get the root node
+    root_node = next((n for n in result.nodes if n.name.lower() == entity.lower()), result.nodes[0])
+    
+    out = [
+        f"# Entity Profile: {root_node.name} ({root_node.type})",
+        f"- **First mentioned:** {root_node.first_seen}",
+        f"- **Last mentioned:** {root_node.last_seen}",
+        f"- **Total mentions:** {root_node.mention_count}",
+        "",
+        "## Known Relationships",
+    ]
+    
+    if not result.edges:
+        out.append("No known relationships.")
+    else:
+        for e in result.edges:
+            # Emphasize the connection based on weight
+            strength = "Strongly" if e.weight >= 0.8 else "Moderately" if e.weight >= 0.5 else "Weakly"
+            out.append(f"- **{strength} {e.rel_type.lower()}** to `{e.target}`")
+            if e.evidence:
+                out.append(f"  > *\"{e.evidence}\"*")
+                
+    out.append("")
+    out.append("These details are generated from traversing the knowledge graph memory.")
+    return "\n".join(out)
+
+
+# ─── Prompts ─────────────────────────────────────────────────────────────
+
+@mcp.prompt()
+def reflect_on_day() -> str:
+    """A prompt template for doing an end-of-day reflection."""
+    today = datetime.now(JST).strftime("%Y-%m-%d")
+    return f"""Please review my memory entries for today ({today}) by reading the kioku://memories/{today} resource. 
+Then, provide a thoughtful end-of-day reflection that covers:
+1. The overall emotional tone of my day.
+2. The key events and entities I interacted with.
+3. A positive takeaway or lesson for tomorrow.
+
+Respond as a compassionate companion (my 'Kioku')."""
+
+
+@mcp.prompt()
+def analyze_relationships(entity_name: str) -> str:
+    """A prompt template to deeply analyze a person or topic based on graph connections."""
+    return f"""Please use the kioku://entities/{entity_name} resource to read about '{entity_name}'.
+    
+Analyze this entity's role in my life based on the knowledge graph:
+1. What is my primary emotional response surrounding this entity?
+2. Who or what else is frequently connected to this entity?
+3. What are some notable patterns in my memories involving {entity_name}?
+
+Write the analysis in a helpful, introspective tone."""
+
+
+@mcp.prompt()
+def weekly_review() -> str:
+    """A prompt template to do a weekly memory retrospective."""
+    today = datetime.now(JST)
+    days = [(today - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(7)]
+    dates_list = ", ".join(days)
+    
+    return f"""Please perform a weekly retrospective of my life over the past 7 days:
+    
+Dates to check (using tools to read memory dates if resources aren't mapped):
+{dates_list}
+
+Please synthesize:
+- The highs and lows of the week based on 'mood' and events.
+- An overview of who I spent the most time with or thought about often.
+- Recommended focus areas for next week based on lingering tasks or stress points mentioned."""
+
+
 # ─── Main ────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

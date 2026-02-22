@@ -135,3 +135,68 @@ class TestListMemoryDatesTool:
         result = list_memory_dates()
         assert result["count"] >= 1
         assert len(result["dates"]) >= 1
+
+
+from kioku import server as server_module
+
+class TestTimelineAndPatternsTools:
+    def test_get_timeline(self, setup_test_env):
+        server_module.save_memory("First event", mood="neutral", tags=["test1"])
+        server_module.save_memory("Second event", mood="happy", tags=["test2"])
+        
+        result = server_module.get_timeline(limit=10)
+        assert result["count"] >= 2
+        
+        timeline = result["timeline"]
+        # Timeline should be chronological (first event before second event)
+        assert timeline[-2]["text"] == "First event"
+        assert timeline[-1]["text"] == "Second event"
+
+    def test_get_life_patterns(self, setup_test_env):
+        server_module.save_memory("A", mood="happy", tags=["work", "coding"])
+        server_module.save_memory("B", mood="happy", tags=["work"])
+        server_module.save_memory("C", mood="stressed", tags=["coding"])
+        
+        result = server_module.get_life_patterns(days_back=7)
+        assert result["total_entries"] >= 3
+        
+        moods = {m["mood"]: m["count"] for m in result["frequent_moods"]}
+        tags = {t["tag"]: t["count"] for t in result["frequent_topics"]}
+        
+        assert moods.get("happy", 0) >= 2
+        assert moods.get("stressed", 0) >= 1
+        assert tags.get("work", 0) >= 2
+        assert tags.get("coding", 0) >= 2
+
+
+class TestResourcesAndPrompts:
+    def test_memory_resource(self, setup_test_env):
+        server_module.save_memory("Test string in memory", mood="happy")
+        from kioku.config import settings
+        from datetime import datetime
+        today = datetime.now().strftime("%Y-%m-%d")
+        
+        res = server_module.read_memory_resource(today)
+        assert "Test string in memory" in res
+        
+        res_empty = server_module.read_memory_resource("1900-01-01")
+        assert "No memories found" in res_empty
+
+    def test_entity_resource(self, setup_test_env):
+        server_module.save_memory("I went to the gym with Minh")
+        # Entity "Minh" and "gym" should be extracted by FakeExtractor
+        res = server_module.read_entity_resource("Minh")
+        assert "Entity Profile: Minh" in res
+
+    def test_prompts(self):
+        # Prompts are static string generations, just make sure they don't crash
+        prompt1 = server_module.reflect_on_day()
+        assert "kioku://memories/" in prompt1
+        assert "overall emotional tone" in prompt1
+        
+        prompt2 = server_module.analyze_relationships("Hùng")
+        assert "kioku://entities/Hùng" in prompt2
+        assert "What is my primary emotional response" in prompt2
+        
+        prompt3 = server_module.weekly_review()
+        assert "weekly retrospective" in prompt3
