@@ -1,101 +1,88 @@
 # Kioku MCP — Restructure Plan Phase 7
 
 ## Mục tiêu (Objectives)
-Tập trung nâng cấp chất lượng dữ liệu và khả năng truy vết của hệ thống ở cấp độ ngữ nghĩa sâu hơn. Phase 7 giải quyết hai bài toán kinh điển trong phân tích dữ liệu (Data Analytics) và Đồ thị tri thức (Knowledge Graph):
+Tập trung nâng cấp chất lượng dữ liệu và khả năng truy vết của hệ thống ở cấp độ ngữ nghĩa sâu hơn. Phase 7 giải quyết ba bài toán kinh điển trong phân tích dữ liệu (Data Analytics), Đồ thị tri thức (Knowledge Graph) và Truy Xuất Tăng Cường (RAG):
 1. **Bi-temporal Modeling (Mô hình lưỡng cực thời gian)**
 2. **Entity Resolution & Disambiguation (Đồng nhất & Khử thực thể trùng lặp)**
+3. **Universal Identifier & O(1) Raw Text Retrieval (Truy xuất nguyên bản siêu tốc)**
 
 ---
 
 ## 1. Bi-temporal Time: Event Time vs Processing Time
 
-### Khái niệm
+### Bài toán
 Trong thế giới dữ liệu, có 2 trục thời gian cực kì quan trọng:
-- **Processing Time (Transaction Time):** Thời điểm hệ thống ghi nhận sự việc. Trong Kioku, đây chính là trường `time` (ví dụ `2026-02-23T22:42:09`) khi người dùng gõ phím.
-- **Event Time (Valid Time):** Thời điểm sự việc THỰC SỰ xảy ra ngoài đời thực. Ví dụ, câu nói *"Sài Gòn, 8.7.2024, con trai 3 tuổi..."* thì Event Time là `2024-07-08`.
+- **Processing Time (Transaction Time):** Thời điểm hệ thống ghi nhận sự việc. Trong Kioku, đây chính là trường `time` hiện tại khi người dùng gõ phím.
+- **Event Time (Valid Time):** Thời điểm sự việc THỰC SỰ xảy ra ngoài đời thực.
 
-**Tại sao cần thiết?**
-Hiện tại mọi `timeline` của Kioku được xếp theo Processing Time. Điều này tạo ra một "Nhật ký hồi tưởng" (biết được hôm nay mình đã nhớ về chuyện gì), nhưng KHÔNG vẽ ra được "Nhật ký cuộc đời" (tuổi thơ - lúc 22 tuổi - lúc 30 tuổi). 
+Hiện tại mọi `timeline` của Kioku được xếp theo Processing Time. Điều này chỉ tạo ra một "Nhật ký hồi tưởng" (biết được hôm nay mình đã nhớ về chuyện gì), nhưng KHÔNG vẽ ra được "Nhật ký cuộc đời" (diễn biến sự kiện theo trục thời gian thực).
 
 ### Kế hoạch Triển khai (Implementation)
-1. **Cập nhật Markdown Frontmatter:**
-   Thêm trường `event_time: "YYYY-MM-DD"` (Optional).
-   ```yaml
-   ---
-   time: "2026-02-23T22:47:14+07:00"
-   event_time: "2024-07-08"
-   mood: "loving"
-   tags: ['siblings']
-   ---
-   ```
-2. **Cập nhật AI Extractor Prompt:**
-   Dạy LLM tự động trích xuất `event_time` từ nội dung văn bản (nếu có nhắc đến "năm 2020", "hôm qua", "tuổi 22", "8/7/2024"). 
-   Cần cẩn thận prompt để xử lý Relative Time ("hôm qua") dựa vào Processing Time hiện tại.
+1. **Cập nhật Markdown Frontmatter:** Thêm trường `event_time: "YYYY-MM-DD"` (Optional).
+2. **Cập nhật AI Extractor Prompt:** Dạy lại LLM (`ClaudeExtractor`) tự động phân tích Relative Time (ví dụ: "tuổi 22", "hôm qua", "năm ngoái") kết hợp với Processing Time để nội suy và điền giá trị Date chuẩn hóa vào `event_time` lúc phân tách các block văn bản.
 3. **Cập nhật DB Schema:**
    - **SQLite:** Thêm cột `event_time` vào bảng `memories`.
-   - **ChromaDB:** Thêm metadata `event_time` vào các payload vector.
-   - **FalkorDB (Knowledge Graph):** Cập nhật các Node và Edge để mang thêm thuộc tính `event_time` thay vì chỉ lưu `processing_time`.
-   - **Tool `timeline`:** Mở rộng tham số để cho phép người dùng muốn xem Timeline theo `processing_time` hay `event_time`.
+   - **ChromaDB:** Thêm metadata `event_time` vào các cấu trúc payload.
+   - **FalkorDB (Knowledge Graph):** Cập nhật thuộc tính của Node và Edge (Relationship) để lưu `event_time` thay vì chỉ lưu `processing_time`.
 
 ---
 
 ## 2. Entity Resolution & Disambiguation (Đồng nhất Thực thể)
 
 ### Bài toán
-Ngôn ngữ tự nhiên rất đa dạng: `Mẹ`, `Mom`, `Mother`, `Bà ngoại`, `Bà Vinh`... về mặt ngữ nghĩa đều trỏ về 1 người. Cảm xúc (Mood): `vui`, `happy`, `cheerful` thực chất là 1.
-Nếu Knowledge Graph trích xuất mỗi từ thành 1 Node riêng biệt, đồ thị sẽ bị phân mảnh gãy vụn (Fragmented), mất đi sức mạnh của mối quan hệ bắc cầu (`A -> B -> C`).
+Ngôn ngữ tự nhiên rất đa dạng: `Mẹ`, `Mom`, `Mother`, `Bà Vinh`... về mặt ngữ nghĩa đều trỏ về 1 người. Nếu Knowledge Graph trích xuất mỗi từ thành 1 Node riêng biệt, đồ thị sẽ bị phân mảnh gãy vụn (Fragmented), làm suy yếu khả năng suy luận quan hệ bắc cầu (`A -> B -> C`). Quá trình xử lý cảm xúc (`mood`) hoặc thẻ tag (`tags`) cũng gặp vấn đề tương tự nếu không được nhóm lặp.
 
 ### Kế hoạch Triển khai (Implementation)
+Áp dụng **In-Flight LLM Disambiguation (Giải quyết trên đường bay)** để tránh đẻ thêm Node dư thừa.
 
-Cần áp dụng kỹ thuật **Entity Resolution (ER) & Node Merging**.
-
-**Bảo lưu tính gốc (Raw) vs Tính đồng bộ (Normalized)**
-Không nên xoá từ gốc của người dùng vì nó chứa sắc thái cảm xúc, nhưng trong DB cần "gom" lại.
-
-*Giải pháp Đề xuất:*
-
-1. **In-Prompt LLM Disambiguation (Dùng AI trên đường bay):**
-   - **Cách làm:** Trước khi gọi LLM trích xuất Event (ClaudeExtractor), hệ thống sẽ Query (câu lệnh phụ) lấy danh sách Top 50 Entities đang tồn tại trong Graph của người dùng.
-   - **Prompt:** *"Dưới đây là các thực thể đã biết: [Mẹ, Vy, Phong, Hùng]. Hãy ưu tiên sử dụng lại các Entity (Canonical Name) này nếu thực thể trong đoạn text thực chất là một"* (Ví dụ: gặp chữ `mom`, LLM tự trả về Entity name = `Mẹ`).
-
-2. **Entity Alias (Gắn từ đồng nghĩa trong Đồ thị):**
-   - Trường hợp không thể gom bằng LLM, thiết kế cấu trúc Graph linh hoạt hơn:
-     `(Alias: "Mom") -[SAME_AS]-> (Entity: "Mẹ")`
-   - Tuy nhiên cách này làm nặng Graph. Nên ưu tiên cách 1 (Merge Node từ lúc lưu).
-
-3. **Mood & Tag Normalization:**
-   - Các trường `mood` và `tags` trước khi insert vào Vector/SQLite nên được pass qua một lớp Vector Semantic Similarity nhỏ, hoặc Prompt gom nhóm. Ví dụ tự map `vui_vẻ` -> `happy`. Điều này giúp `get_life_patterns` chính xác tuyệt đối.
+1. **Context-Aware Extraction:**
+   - Trước khi gọi LLM (Claude) trích xuất Entity, hệ thống truy vấn siêu tốc lấy ra mạng lưới các Canonical Entities (Danh sách tên thực thể chuẩn) đang tồn tại phổ biến trong Graph của user.
+   - Đưa danh sách này vào Prompt: *"Dưới đây là các thực thể đã biết. Hãy ưu tiên sử dụng lại các Entity (Canonical Name) này nếu thực thể trong đoạn text thực chất là một, thay vì tạo tên mới."* (Coreference Resolution).
+2. **Mood & Tag Normalization:**
+   - Đưa các trường `mood` và `tags` đi qua bộ Semantic Similarity nhẹ. Ví dụ LLM/Hệ thống tự map `vui_vẻ` -> `happy` nhằm quy chuẩn lại cho chức năng Life Patterns chính xác 100%.
 
 ---
 
 ## 3. Universal Identifier: Nối kết O(1) về Văn bản gốc (Raw Text)
 
 ### Bài toán
-Markdown tuy là Single Source of Truth (Sao lưu cực an toàn), nhưng việc Parse lại toàn bộ 1 file Markdown 500 lines chỉ để tìm lại 1 bằng chứng (Raw text evidence) là lãng phí tài nguyên (CPU, I/O) và gây tốn Token của LLM nếu đút cả file vào ngữ cảnh.
+Markdown tuy là Single Source of Truth (Sao lưu cực an toàn), nhưng việc Service phải Parse lại toàn bộ 1 file Markdown lớn (hàng trăm dòng) chỉ để đắp thịt 1 bằng chứng (evidence raw text) là rất lãng phí CPU, I/O và Token LLM.
 
-### Giải pháp (Implementation)
-Dùng chính **SQLite làm Document Read-Store** hoàn hảo cho việc này với cơ chế Retrieval O(1). 
-Thực chất, hệ thống hiện tại của Kioku ĐÃ CÓ sẵn một ID Độc nhất vô nhị (Universal ID) nhưng chưa tận dụng hết: Đó là trường **`content_hash`** (mã Hash SHA-256 sinh ra từ nội dung của từng block memory).
+### Kế hoạch Triển khai (Implementation)
+Quy hoạch lại hệ thống Database thành mô hình **Standardized Retrieval Pipeline**: Dùng SQLite làm trung tâm dữ liệu toàn văn và sử dụng `content_hash` làm Universal Identifier (ID Duy nhất).
 
-1. **SQLite (Keyword DB):** Đóng vai trò là **Primary Document Store**. Lưu trữ nội dung văn bản đầy đủ (raw text) và metadata hoàn chỉnh.
-2. **Vector Store (ChromaDB):** Hiện đang dùng `content_hash` làm Vector ID. Sẽ giảm tải: không cần lặp lại raw text/metadata nặng trong ChromaDB nữa, chỉ lưu embedding và ID.
-3. **Knowledge Graph (FalkorDB):** Cần bổ sung thêm properties `source_id: "mã_content_hash"` (khoá ngoại) vào các Edge liên kết (Relationship) trên đồ thị.
-4. **Data Aggregation Layer (Kioku Service):** 
-   - Bất cứ khi nào Agent tìm được một Vector khớp (từ ChromaDB), nó chỉ ném mảng Vector IDs ra.
-   - Bất cứ khi nào lội theo Graph mà tóm được ID của một Relationship (từ FalkorDB).
-   - **Tầng Backend (Service)** sẽ gom 1 mẻ ID này, chọc thẳng vào SQLite: `SELECT content, date, tags FROM memories WHERE content_hash IN (...)`.
-   - Kết quả cuối cùng (Full text) được đắp thịt (Hydrated) và JSON-hóa hoàn chỉnh trước khi trả về cho Agent. (Bỏ qua hoàn toàn việc chạm vào file Markdown vật lý hay bắt Agent phải tự gọi tool).
-
-=> **Lợi ích kép:** Backup của Text (Markdown) + Tốc độ Vận hành của Database (SQLite + ID).
+1. **SQLite (Keyword DB):** Đóng vai trò là **Primary Document Store**. Nơi lưu trữ duy nhất và đầy đủ nguyên văn văn bản (raw text), ID tự tăng, cùng chuỗi hash định danh `content_hash`. Chuyển tốc độ truy xuất thành O(1).
+2. **Ví trí của Vector Store (ChromaDB):** Sẽ giảm tải hoàn toàn! Không lặp lại việc lưu raw text hay metadata nặng. ChromaDB chỉ dùng để chấm điểm độ tương đồng vector, sau đó ném lại mảng the ID (`content_hash`).
+3. **FalkorDB (Knowledge Graph):** Buộc phải bổ sung thêm tham số khoá ngoại `source_id: "<mã_content_hash>"` vào các Edge liên kết trên đồ thị.
+4. **Data Aggregation Layer (Tầng Service gom dữ liệu):** 
+   - Không bắt Agent tự đi đọc văn bản.
+   - Khi Service nhận lại các mảng ID (từ ChromaDB hoặc FalkorDB), nó sẽ chọc 1 phát vào SQLite: `SELECT content, date, tags FROM memories WHERE content_hash IN (...)`.
+   - Kết quả trả lại cho Agent sẽ luôn là dạng JSON đã được Hydrate (đắp thịt) toàn bộ văn bản gốc liên quan sâu nhất. Định dạng đồng nhất và tốc độ mili-giây.
 
 ---
 
-## Checklist Hành động (Task List)
-- [ ] Bổ sung trường `event_time` vào `kioku.storage.markdown`, `extractor.py`.
-- [ ] Cập nhật Schema SQLite, ChromaDB Metadata và thuộc tính của Knowledge Graph theo `event_time`.
-- [ ] Khắc trường `source_id` (chính là chuỗi `content_hash`) vào các Edge trong FalkorDB.
-- [ ] Tối ưu ChromaDB: Bỏ lặp lại việc lưu Raw Text trong Chroma metadata/document nếu không cần thiết.
-- [ ] Tuỳ biến `kioku timeline` command để hỗ trợ sort theo `event_time`.
-- [ ] Nâng cấp Prompt trích xuất: Cung cấp `context_entities` và ép LLM thực hiện Entity Resolution (giải quyết đại từ/đồng nghĩa).
-- [ ] Cấu trúc lại Tầng Service (KiokuService): Ngầm tự động thực hiện map ID từ ChromaDB/FalkorDB -> `SQLite.get_by_ids()` để đắp (hydrate) Raw Text trả về Agent trong cùng 1 nhịp Tool Call.
-- [ ] Cập nhật bài Test đảm bảo hệ thống.
+## 4. Tác Động Đến Kioku MCP Tools (Impact on Tools & AGENTS.md)
+Việc cấu trúc lại backend này sẽ trực tiếp làm thay đổi hành vi và hướng dẫn của các công cụ sau:
+
+1. **`timeline` Tool:**
+   - **Tham số thay đổi:** Sẽ có thêm cờ `--sort-by` (hoặc `sort_type`), nhận giá trị `processing_time` (mặc định) hoặc `event_time`.
+   - **Hướng dẫn cho Agent:** Phân biệt rõ tình huống. Khi User hỏi "Nhóm các sự kiện cuộc đời tôi từ nhỏ tới lớn" => Agent phải tự biết gõ cờ `--sort-by event_time`. Còn "Hôm qua tôi đã nhảm gì" => `--sort-by processing_time`.
+2. **`save` Tool:**
+   - **Tác động ngầm:** Sẽ chạy chậm hơn một chút vì có thêm bước Context-Aware LLM resolution (lấy danh sách tên Entity cũ). Quá trình ghi nhận sẽ tạo ra các Network Graph tập trung và ít phân tán hơn.
+   - Không thay đổi argument đầu vào.
+3. **`search` / `explain` / `recall` Tools:**
+   - **Payload trả về thay đổi:** Tốc độ trả về sẽ nhanh hơn, nhưng lượng text sẽ chính xác tuyệt đối từng câu/đoạn nhờ khả năng trích xuất O(1) từ SQLite, chứ không đọc tràn lan từ file Markdown hay Chroma chunk nữa. 
+   - Danh sách "Evidence" ở đồ thị giờ đã luôn kèm Raw Text cực kì hoàn hảo.
+   - Các Agent không cần sử dụng trick `kioku read` để đọc Raw Markdown như ngày trước nữa, vì mọi kết quả Graph giờ đã nhúng Full-text ở cấp độ block.
+
+---
+
+## 5. Checklist Hành động (Task List)
+- [ ] Bổ sung cơ chế parse/validate `event_time` vào `kioku.storage.markdown` và prompt `extractor.py`.
+- [ ] Cập nhật Schema SQLite để chứa cột `event_time`.
+- [ ] Xoá bỏ việc dư thừa raw document trong metadata của ChromaDB. Thêm filter `event_time`.
+- [ ] Khắc trường `source_id` (chính là chuỗi `content_hash`) và thuộc tính `event_time` vào các Edge/Node trong FalkorDB.
+- [ ] Nâng cấp Prompt trích xuất: Cung cấp `context_entities` và ép Entity Resolution (giải quyết đại từ/đồng nghĩa).
+- [ ] Cấu trúc lại `KiokuService`: Các hàm search graph/vector hiện tại sẽ chỉ thu thập ID, sau đó Map qua `SQLite.get_by_ids()` để trả JSON nguyên bản cho Agent.
+- [ ] Cập nhật Tham số CLI CLI/MCP cho lệnh `timeline`.
+- [ ] Cập nhật Bài Test cho mọi Module.
