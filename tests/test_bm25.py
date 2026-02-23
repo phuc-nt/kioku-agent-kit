@@ -1,7 +1,6 @@
 """Tests for SQLite FTS5 keyword search."""
 
 import pytest
-from pathlib import Path
 from kioku.pipeline.keyword_writer import KeywordIndex
 from kioku.search.bm25 import bm25_search
 

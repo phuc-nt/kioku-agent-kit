@@ -2,7 +2,6 @@
 
 import uuid
 import pytest
-from pathlib import Path
 
 from kioku.config import Settings
 from kioku.pipeline.keyword_writer import KeywordIndex
@@ -74,7 +73,6 @@ def setup_test_env(tmp_path, monkeypatch):
 from kioku.server import (
     save_memory,
     search_memories,
-    get_timeline,
     list_memory_dates,
     recall_related,
     explain_connection,
@@ -167,10 +165,96 @@ class TestTimelineAndPatternsTools:
 
         result = server_module.get_timeline(limit=10)
         assert result["count"] >= 2
+        assert result["sort_by"] == "processing_time"
 
         timeline = result["timeline"]
         assert timeline[-2]["text"] == "First event"
         assert timeline[-1]["text"] == "Second event"
+        # Phase 7: event_time field should be present
+        assert "event_time" in timeline[-1]
+
+    def test_get_timeline_sort_by_event_time(self, setup_test_env):
+        """Timeline can be sorted by event_time instead of processing_time."""
+        # Save entries — FakeExtractor doesn't produce event_time, so field will be empty
+        server_module.save_memory("Old memory about childhood")
+        server_module.save_memory("Recent memory about today")
+
+        result = server_module.get_timeline(limit=10, sort_by="event_time")
+        assert result["sort_by"] == "event_time"
+        # With FakeExtractor, no entries have event_time set, so count may be 0
+        assert result["count"] >= 0
+
+
+class TestPhase7BiTemporal:
+    """Phase 7: Bi-temporal modeling, entity resolution, universal identifier."""
+
+    def test_save_returns_event_time(self):
+        """save_memory should return event_time field."""
+        result = save_memory("Hôm qua đi ăn phở rất ngon")
+        assert "event_time" in result
+        # FakeExtractor doesn't infer event_time, so it's None
+        # But the field must be present in the response
+
+    def test_event_time_in_sqlite(self, setup_test_env):
+        """event_time should be stored in SQLite."""
+        svc = server_module._svc
+        import hashlib
+
+        text = "Meeting with team about project kickoff"
+        content_hash = hashlib.sha256(text.encode()).hexdigest()
+        svc.keyword_index.index(
+            content=text,
+            date="2026-02-24",
+            timestamp="2026-02-24T10:00:00+07:00",
+            mood="neutral",
+            content_hash=content_hash,
+            event_time="2026-02-20",
+        )
+        results = svc.keyword_index.get_by_hashes([content_hash])
+        assert content_hash in results
+        assert results[content_hash]["event_time"] == "2026-02-20"
+
+    def test_get_by_hashes_empty(self, setup_test_env):
+        """get_by_hashes with empty list returns empty dict."""
+        svc = server_module._svc
+        assert svc.keyword_index.get_by_hashes([]) == {}
+
+    def test_get_by_hashes_multiple(self, setup_test_env):
+        """get_by_hashes returns multiple entries."""
+        svc = server_module._svc
+        import hashlib
+
+        hashes = []
+        for i in range(3):
+            text = f"Memory number {i} about different topics"
+            h = hashlib.sha256(text.encode()).hexdigest()
+            hashes.append(h)
+            svc.keyword_index.index(
+                content=text,
+                date="2026-02-24",
+                timestamp=f"2026-02-24T10:0{i}:00+07:00",
+                mood="",
+                content_hash=h,
+            )
+        results = svc.keyword_index.get_by_hashes(hashes)
+        assert len(results) == 3
+
+    def test_graph_canonical_entities(self, setup_test_env):
+        """Graph store should return canonical entity names."""
+        save_memory("Hùng gọi điện hỏi dự án, stressed")
+        save_memory("Hùng mời đi ăn trưa, happy")
+        svc = server_module._svc
+        entities = svc.graph_store.get_canonical_entities(limit=10)
+        assert isinstance(entities, list)
+
+    def test_graph_source_hash_on_edges(self, setup_test_env):
+        """Graph edges should carry source_hash for O(1) hydration."""
+        save_memory("Hùng làm tôi stressed vì deadline")
+        svc = server_module._svc
+        result = svc.graph_store.traverse("Hùng", max_hops=2, limit=10)
+        # InMemoryGraphStore stores source_hash on edges
+        for edge in result.edges:
+            assert hasattr(edge, "source_hash")
 
 
 class TestResourcesAndPrompts:

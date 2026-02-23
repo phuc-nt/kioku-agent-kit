@@ -1,6 +1,5 @@
 """Tests for RRF reranker."""
 
-import pytest
 from kioku.search.bm25 import SearchResult
 from kioku.search.reranker import rrf_rerank
 

@@ -44,12 +44,17 @@ class VectorStore:
         timestamp: str,
         mood: str = "",
         tags: list[str] | None = None,
+        content_hash: str | None = None,
+        event_time: str = "",
     ) -> str:
         """Add a memory chunk to the vector store.
 
-        Returns the document ID (content hash). Skips duplicates.
+        Returns the document ID (content_hash). Skips duplicates.
+        Uses full content_hash as universal identifier for cross-store joins.
         """
-        doc_id = hashlib.sha256(content.encode()).hexdigest()[:16]
+        if not content_hash:
+            content_hash = hashlib.sha256(content.encode()).hexdigest()
+        doc_id = content_hash[:16]
 
         # Check if already exists
         existing = self.collection.get(ids=[doc_id])
@@ -59,7 +64,7 @@ class VectorStore:
         # Generate embedding
         embedding = self.embedder.embed(content)
 
-        # Upsert to ChromaDB
+        # Upsert to ChromaDB — lightweight metadata only, raw text in SQLite
         self.collection.add(
             ids=[doc_id],
             embeddings=[embedding],
@@ -70,6 +75,8 @@ class VectorStore:
                     "timestamp": timestamp,
                     "mood": mood,
                     "tags": ",".join(tags) if tags else "",
+                    "content_hash": content_hash,
+                    "event_time": event_time,
                 }
             ],
         )

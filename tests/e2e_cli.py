@@ -26,6 +26,7 @@ def run_cli(*args: str) -> dict | str:
 
 import datetime
 
+
 def main():
     print("🚀 Bắt đầu CLI E2E Test...")
     errors = []
@@ -33,11 +34,19 @@ def main():
     # 1. save
     print("\n[TEST] kioku save")
     try:
-        res = run_cli("save", "Cuối tuần đi cà phê với Mai, thảo luận về dự án OpenClaw rất thú vị.", "--mood", "excited", "--tags", "weekend,project,openclaw")
+        res = run_cli(
+            "save",
+            "Cuối tuần đi cà phê với Mai, thảo luận về dự án OpenClaw rất thú vị.",
+            "--mood",
+            "excited",
+            "--tags",
+            "weekend,project,openclaw",
+        )
         assert res["status"] == "saved", f"Expected saved, got {res['status']}"
         assert res["mood"] == "excited"
         assert res["tags"] == ["weekend", "project", "openclaw"]
-        print(f"  ✅ Saved: {res['timestamp']}")
+        assert "event_time" in res, "Phase 7: event_time field must be present in save response"
+        print(f"  ✅ Saved: {res['timestamp']}, event_time={res.get('event_time')}")
     except Exception as e:
         errors.append(f"save: {e}")
         print(f"  ❌ {e}")
@@ -46,7 +55,9 @@ def main():
     print("\n[TEST] kioku search")
     try:
         today_str = datetime.date.today().isoformat()
-        res = run_cli("search", "Dự án OpenClaw", "--limit", "5", "--from", today_str, "--to", today_str)
+        res = run_cli(
+            "search", "Dự án OpenClaw", "--limit", "5", "--from", today_str, "--to", today_str
+        )
         assert res["count"] >= 1, f"Expected >= 1 result, got {res['count']}"
         assert any("OpenClaw" in r["content"] or "dự án" in r["content"] for r in res["results"])
         print(f"  ✅ Found {res['count']} results")
@@ -99,6 +110,35 @@ def main():
         errors.append(f"timeline: {e}")
         print(f"  ❌ {e}")
 
+    # 7. timeline --sort-by event_time (Phase 7)
+    print("\n[TEST] kioku timeline --sort-by event_time")
+    try:
+        res = run_cli("timeline", "--limit", "5", "--sort-by", "event_time")
+        assert "sort_by" in res, "Phase 7: sort_by field must be in timeline response"
+        assert res["sort_by"] == "event_time"
+        print(f"  ✅ {res['count']} timeline entries (sorted by event_time)")
+    except Exception as e:
+        errors.append(f"timeline --sort-by event_time: {e}")
+        print(f"  ❌ {e}")
+
+    # 8. save with relative time (Phase 7 — test event_time extraction)
+    print("\n[TEST] kioku save (relative time)")
+    try:
+        res = run_cli(
+            "save",
+            "Hôm qua đi ăn phở với Minh, rất ngon.",
+            "--mood",
+            "happy",
+            "--tags",
+            "food,friend",
+        )
+        assert res["status"] == "saved"
+        assert "event_time" in res
+        print(f"  ✅ Saved with event_time={res.get('event_time')}")
+    except Exception as e:
+        errors.append(f"save (relative time): {e}")
+        print(f"  ❌ {e}")
+
     # Summary
     print("\n" + "=" * 50)
     if errors:
@@ -107,7 +147,7 @@ def main():
             print(f"  - {e}")
         sys.exit(1)
     else:
-        print("🎉 Tất cả 6 CLI E2E tests PASSED!")
+        print("🎉 Tất cả 8 CLI E2E tests PASSED!")
 
 
 if __name__ == "__main__":

@@ -1,9 +1,8 @@
 """Tests for entity extraction and knowledge graph."""
 
-import uuid
 import pytest
 from kioku.pipeline.extractor import FakeExtractor, Entity, Relationship, ExtractionResult
-from kioku.pipeline.graph_writer import InMemoryGraphStore, GraphNode
+from kioku.pipeline.graph_writer import InMemoryGraphStore
 from kioku.search.graph import graph_search
 
 
@@ -83,8 +82,10 @@ class TestInMemoryGraphStore:
             ],
             relationships=[
                 Relationship(
-                    source="Hùng", target="stressed",
-                    rel_type="EMOTIONAL", weight=0.7,
+                    source="Hùng",
+                    target="stressed",
+                    rel_type="EMOTIONAL",
+                    weight=0.7,
                     evidence="Hùng làm tôi stressed",
                 )
             ],
@@ -114,8 +115,12 @@ class TestInMemoryGraphStore:
                 Entity(name="C", type="PERSON"),
             ],
             relationships=[
-                Relationship(source="A", target="B", rel_type="TOPICAL", weight=0.8, evidence="A knows B"),
-                Relationship(source="B", target="C", rel_type="TOPICAL", weight=0.6, evidence="B knows C"),
+                Relationship(
+                    source="A", target="B", rel_type="TOPICAL", weight=0.8, evidence="A knows B"
+                ),
+                Relationship(
+                    source="B", target="C", rel_type="TOPICAL", weight=0.6, evidence="B knows C"
+                ),
             ],
         )
         graph_store.upsert(extraction, date="2026-02-22", timestamp="t1")

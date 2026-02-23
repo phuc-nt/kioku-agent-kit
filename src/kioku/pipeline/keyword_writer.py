@@ -49,6 +49,10 @@ class KeywordIndex:
             cur.execute("ALTER TABLE memories ADD COLUMN tags TEXT DEFAULT '[]'")
         except sqlite3.OperationalError:
             pass
+        try:
+            cur.execute("ALTER TABLE memories ADD COLUMN event_time TEXT DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
         # FTS5 virtual table linked to memories
         cur.execute("""
             CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
@@ -82,6 +86,7 @@ class KeywordIndex:
         mood: str = "",
         content_hash: str = "",
         tags: list[str] | None = None,
+        event_time: str = "",
     ) -> int:
         """Index a memory entry. Returns the row id.
 
@@ -98,8 +103,8 @@ class KeywordIndex:
         cur = self.conn.cursor()
         try:
             cur.execute(
-                "INSERT INTO memories (content, date, mood, timestamp, content_hash, tags) VALUES (?, ?, ?, ?, ?, ?)",
-                (content, date, mood, timestamp, content_hash, tags_str),
+                "INSERT INTO memories (content, date, mood, timestamp, content_hash, tags, event_time) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (content, date, mood, timestamp, content_hash, tags_str, event_time or ""),
             )
             self.conn.commit()
             return cur.lastrowid  # type: ignore
@@ -153,53 +158,101 @@ class KeywordIndex:
     def get_by_date(self, date: str) -> list[dict]:
         """Get all memories for a specific date from SQLite."""
         cur = self.conn.cursor()
-        cur.execute("SELECT content, date, mood, timestamp, tags FROM memories WHERE date = ? ORDER BY timestamp ASC", (date,))
+        cur.execute(
+            "SELECT content, date, mood, timestamp, tags, event_time FROM memories WHERE date = ? ORDER BY timestamp ASC",
+            (date,),
+        )
         import json
+
         return [
             {
                 "text": r[0],
                 "date": r[1],
                 "mood": r[2],
                 "timestamp": r[3],
-                "tags": json.loads(r[4]) if r[4] else []
+                "tags": json.loads(r[4]) if r[4] else [],
+                "event_time": r[5] or "",
             }
             for r in cur.fetchall()
         ]
 
-    def get_timeline(self, start_date: str | None = None, end_date: str | None = None, limit: int = 50) -> list[dict]:
-        """Get timeline bounded by dates, directly from SQLite."""
-        query = "SELECT content, date, mood, timestamp, tags FROM memories"
-        params = []
+    def get_by_hashes(self, content_hashes: list[str]) -> dict[str, dict]:
+        """O(1) lookup: Get memories by content_hash. Returns {hash: {text, date, mood, ...}}."""
+        if not content_hashes:
+            return {}
+        import json
+
+        placeholders = ",".join("?" for _ in content_hashes)
+        cur = self.conn.cursor()
+        cur.execute(
+            f"SELECT content_hash, content, date, mood, timestamp, tags, event_time FROM memories WHERE content_hash IN ({placeholders})",
+            content_hashes,
+        )
+        result = {}
+        for r in cur.fetchall():
+            result[r[0]] = {
+                "text": r[1],
+                "date": r[2],
+                "mood": r[3],
+                "timestamp": r[4],
+                "tags": json.loads(r[5]) if r[5] else [],
+                "event_time": r[6] or "",
+            }
+        return result
+
+    def get_timeline(
+        self,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        limit: int = 50,
+        sort_by: str = "processing_time",
+    ) -> list[dict]:
+        """Get timeline bounded by dates, directly from SQLite.
+
+        Args:
+            sort_by: "processing_time" (default, when it was recorded) or
+                     "event_time" (when the event actually happened).
+        """
+        query = "SELECT content, date, mood, timestamp, tags, event_time FROM memories"
+        params: list = []
         conditions = []
-        
+
+        date_col = "event_time" if sort_by == "event_time" else "date"
+
         if start_date:
-            conditions.append("date >= ?")
+            conditions.append(f"{date_col} >= ?")
             params.append(start_date)
         if end_date:
-            conditions.append("date <= ?")
+            conditions.append(f"{date_col} <= ?")
             params.append(end_date)
-            
+
+        # For event_time sorting, exclude entries with no event_time
+        if sort_by == "event_time":
+            conditions.append("event_time != ''")
+
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
-            
-        query += " ORDER BY timestamp DESC LIMIT ?"
+
+        order_col = "event_time" if sort_by == "event_time" else "timestamp"
+        query += f" ORDER BY {order_col} DESC LIMIT ?"
         params.append(limit)
-        
+
         cur = self.conn.cursor()
         cur.execute(query, tuple(params))
         import json
-        
+
         results = [
             {
                 "text": r[0],
                 "date": r[1],
                 "mood": r[2],
                 "timestamp": r[3],
-                "tags": json.loads(r[4]) if r[4] else []
+                "tags": json.loads(r[4]) if r[4] else [],
+                "event_time": r[5] or "",
             }
             for r in cur.fetchall()
         ]
-        results.reverse() # chronological relative to the slice
+        results.reverse()  # chronological relative to the slice
         return results
 
     def get_dates(self) -> list[str]:

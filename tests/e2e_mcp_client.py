@@ -14,13 +14,11 @@ except ImportError:
 
 async def run_e2e():
     print("🚀 Bắt đầu giả lập MCP Client E2E Test...")
-    
+
     # Thiết lập server parameters để gọi server qua stdio
     # Chú ý: Cần truyền biến môi trường hiện tại để server nhận được KIOKU_ANTHROPIC_API_KEY
     server_params = StdioServerParameters(
-        command="python",
-        args=["-m", "kioku.server"],
-        env=os.environ.copy()
+        command="python", args=["-m", "kioku.server"], env=os.environ.copy()
     )
 
     try:
@@ -40,7 +38,7 @@ async def run_e2e():
                 save_args = {
                     "text": "Cuối tuần đi cà phê với Mai, thảo luận về dự án OpenClaw rất thú vị.",
                     "mood": "excited",
-                    "tags": ["weekend", "project", "openclaw"]
+                    "tags": ["weekend", "project", "openclaw"],
                 }
                 save_res = await session.call_tool("save_memory", save_args)
                 print(f"🔹 Result: {save_res.content[0].text if save_res.content else save_res}")
@@ -48,30 +46,39 @@ async def run_e2e():
                 # 3. Test Tool: search_memories
                 print("\n[TEST] Tool: search_memories (Tri-hybrid search)")
                 today_str = datetime.date.today().isoformat()
-                search_res = await session.call_tool("search_memories", {
-                    "query": "Dự án OpenClaw", 
-                    "limit": 5,
-                    "date_from": today_str,
-                    "date_to": today_str
-                })
-                print(f"🔹 Result: {search_res.content[0].text if search_res.content else search_res}")
+                search_res = await session.call_tool(
+                    "search_memories",
+                    {
+                        "query": "Dự án OpenClaw",
+                        "limit": 5,
+                        "date_from": today_str,
+                        "date_to": today_str,
+                    },
+                )
+                print(
+                    f"🔹 Result: {search_res.content[0].text if search_res.content else search_res}"
+                )
 
                 # 4. Test Tool: get_timeline
                 print("\n[TEST] Tool: get_timeline")
                 yesterday_str = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
                 tomorrow_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
-                timeline_res = await session.call_tool("get_timeline", {
-                    "limit": 5,
-                    "start_date": yesterday_str,
-                    "end_date": tomorrow_str
-                })
-                print(f"🔹 Result: {timeline_res.content[0].text if timeline_res.content else timeline_res}")
+                timeline_res = await session.call_tool(
+                    "get_timeline",
+                    {"limit": 5, "start_date": yesterday_str, "end_date": tomorrow_str},
+                )
+                print(
+                    f"🔹 Result: {timeline_res.content[0].text if timeline_res.content else timeline_res}"
+                )
 
                 # 5. Test Tool: recall_related (Knowledge Graph)
                 print("\n[TEST] Tool: recall_related (Graph Traversal)")
-                recall_res = await session.call_tool("recall_related", {"entity": "Mai", "max_hops": 2})
-                print(f"🔹 Result: {recall_res.content[0].text if recall_res.content else recall_res}")
-
+                recall_res = await session.call_tool(
+                    "recall_related", {"entity": "Mai", "max_hops": 2}
+                )
+                print(
+                    f"🔹 Result: {recall_res.content[0].text if recall_res.content else recall_res}"
+                )
 
                 # 7. Test Tool: list_memory_dates
                 print("\n[TEST] Tool: list_memory_dates")
@@ -80,8 +87,12 @@ async def run_e2e():
 
                 # 8. Test Tool: explain_connection
                 print("\n[TEST] Tool: explain_connection")
-                explain_res = await session.call_tool("explain_connection", {"entity_a": "Mai", "entity_b": "OpenClaw"})
-                print(f"🔹 Result: {explain_res.content[0].text if explain_res.content else explain_res}")
+                explain_res = await session.call_tool(
+                    "explain_connection", {"entity_a": "Mai", "entity_b": "OpenClaw"}
+                )
+                print(
+                    f"🔹 Result: {explain_res.content[0].text if explain_res.content else explain_res}"
+                )
 
                 # 10. Liệt kê Resources
                 resources_response = await session.list_resources()
@@ -92,13 +103,17 @@ async def run_e2e():
                 print("\n[TEST] Resource: kioku://entities/Mai")
                 entity_res = await session.read_resource("kioku://entities/Mai")
                 # Format của Resource format trả về tuỳ thuộc vào SDK, ta in raw
-                print(f"🔹 Result: {entity_res.contents[0].text if hasattr(entity_res, 'contents') else entity_res}")
+                print(
+                    f"🔹 Result: {entity_res.contents[0].text if hasattr(entity_res, 'contents') else entity_res}"
+                )
 
                 # 12. Test Resource: kioku://memories/{date}
                 print(f"\n[TEST] Resource: kioku://memories/{today_str}")
                 try:
                     mem_res = await session.read_resource(f"kioku://memories/{today_str}")
-                    print(f"🔹 Result: {mem_res.contents[0].text if hasattr(mem_res, 'contents') else mem_res}")
+                    print(
+                        f"🔹 Result: {mem_res.contents[0].text if hasattr(mem_res, 'contents') else mem_res}"
+                    )
                 except Exception as e:
                     print(f"🔹 Result: error reading resource ({e})")
 
@@ -109,7 +124,9 @@ async def run_e2e():
 
                 # 14. Test Prompt: analyze_relationships
                 print("\n[TEST] Prompt: analyze_relationships")
-                prompt_req = await session.get_prompt("analyze_relationships", {"entity_name": "Mai"})
+                prompt_req = await session.get_prompt(
+                    "analyze_relationships", {"entity_name": "Mai"}
+                )
                 print("🔹 Prompt Input (Dành cho LLM):")
                 print(prompt_req.messages[0].content.text if prompt_req.messages else prompt_req)
 
@@ -125,8 +142,30 @@ async def run_e2e():
                 print("🔹 Prompt Input (Dành cho LLM):")
                 print(weekly_req.messages[0].content.text if weekly_req.messages else weekly_req)
 
-                print("\n🎉 Tất cả bài test Client E2E chạy thành công!")
-                
+                # ─── Phase 7 Tests ────────────────────────────────────────
+
+                # 17. Test Tool: get_timeline with sort_by=event_time
+                print("\n[TEST] Tool: get_timeline (sort_by=event_time) — Phase 7")
+                timeline_ev_res = await session.call_tool(
+                    "get_timeline",
+                    {"limit": 5, "sort_by": "event_time"},
+                )
+                print(
+                    f"🔹 Result: {timeline_ev_res.content[0].text if timeline_ev_res.content else timeline_ev_res}"
+                )
+
+                # 18. Test Tool: save_memory with relative time (Phase 7)
+                print("\n[TEST] Tool: save_memory (relative time) — Phase 7")
+                save_relative_args = {
+                    "text": "Hôm qua đi ăn phở với Minh, rất ngon. Nhớ lại hồi năm ngoái cũng đi ăn ở đây.",
+                    "mood": "nostalgic",
+                    "tags": ["food", "memory"],
+                }
+                save_rel_res = await session.call_tool("save_memory", save_relative_args)
+                print(f"🔹 Result: {save_rel_res.content[0].text if save_rel_res.content else save_rel_res}")
+
+                print("\n🎉 Tất cả bài test Client E2E chạy thành công (including Phase 7)!")
+
     except Exception as e:
         print(f"\n❌ Lỗi trong quá trình chạy E2E Client: {e}")
         sys.exit(1)

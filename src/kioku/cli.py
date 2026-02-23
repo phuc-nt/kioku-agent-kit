@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 import json
-import sys
 from typing import Optional
 
 try:
     import typer
 except ImportError:
     raise ImportError(
-        "Typer is required to run the CLI. "
-        "Install it with: pip install kioku-mcp[cli]"
+        "Typer is required to run the CLI. Install it with: pip install kioku-mcp[cli]"
     )
 
 app = typer.Typer(
@@ -45,8 +43,12 @@ def _output(data: dict | str) -> None:
 @app.command()
 def save(
     text: str = typer.Argument(..., help="The memory text to save."),
-    mood: Optional[str] = typer.Option(None, "--mood", "-m", help="Mood tag (e.g., happy, stressed)."),
-    tags: Optional[str] = typer.Option(None, "--tags", "-t", help="Comma-separated tags (e.g., work,meeting)."),
+    mood: Optional[str] = typer.Option(
+        None, "--mood", "-m", help="Mood tag (e.g., happy, stressed)."
+    ),
+    tags: Optional[str] = typer.Option(
+        None, "--tags", "-t", help="Comma-separated tags (e.g., work,meeting)."
+    ),
 ) -> None:
     """Save a memory entry. Stores text to markdown and indexes for search."""
     tag_list = [t.strip() for t in tags.split(",")] if tags else None
@@ -68,7 +70,9 @@ def search(
 
 @app.command()
 def recall(
-    entity: str = typer.Argument(..., help="Entity name to search for (e.g., person, place, topic)."),
+    entity: str = typer.Argument(
+        ..., help="Entity name to search for (e.g., person, place, topic)."
+    ),
     max_hops: int = typer.Option(2, "--hops", "-h", help="Relationship hops to traverse."),
     limit: int = typer.Option(10, "--limit", "-l", help="Max connected entities to return."),
 ) -> None:
@@ -99,9 +103,17 @@ def timeline(
     start_date: Optional[str] = typer.Option(None, "--from", help="Start date (YYYY-MM-DD)."),
     end_date: Optional[str] = typer.Option(None, "--to", help="End date (YYYY-MM-DD)."),
     limit: int = typer.Option(50, "--limit", "-l", help="Max entries to return."),
+    sort_by: str = typer.Option(
+        "processing_time",
+        "--sort-by",
+        "-s",
+        help="Sort by 'processing_time' (default) or 'event_time'.",
+    ),
 ) -> None:
     """Get a chronologically ordered sequence of memories."""
-    result = _get_svc().get_timeline(start_date=start_date, end_date=end_date, limit=limit)
+    result = _get_svc().get_timeline(
+        start_date=start_date, end_date=end_date, limit=limit, sort_by=sort_by
+    )
     _output(result)
 
 

@@ -6,8 +6,7 @@ try:
     from fastmcp import FastMCP
 except ImportError:
     raise ImportError(
-        "FastMCP is required to run the MCP server. "
-        "Install it with: pip install kioku-mcp[mcp]"
+        "FastMCP is required to run the MCP server. Install it with: pip install kioku-mcp[mcp]"
     )
 
 from kioku.service import KiokuService
@@ -99,7 +98,10 @@ def list_memory_dates() -> dict:
 
 @mcp.tool()
 def get_timeline(
-    start_date: str | None = None, end_date: str | None = None, limit: int = 50
+    start_date: str | None = None,
+    end_date: str | None = None,
+    limit: int = 50,
+    sort_by: str = "processing_time",
 ) -> dict:
     """Get a chronologically ordered sequence of memories from SQLite Database.
 
@@ -107,11 +109,13 @@ def get_timeline(
         start_date: Start date (YYYY-MM-DD) inclusive.
         end_date: End date (YYYY-MM-DD) inclusive.
         limit: Max number of entries to return (default 50).
+        sort_by: "processing_time" (default — when recorded) or "event_time" (when event actually happened).
     """
-    return _svc.get_timeline(start_date=start_date, end_date=end_date, limit=limit)
+    return _svc.get_timeline(start_date=start_date, end_date=end_date, limit=limit, sort_by=sort_by)
 
 
 # ─── Resources ─────────────────────────────────────────────────────────────
+
 
 @mcp.resource("kioku://memories/{date}")
 def read_memory_resource(date: str) -> str:
@@ -126,6 +130,7 @@ def read_entity_resource(entity: str) -> str:
 
 
 # ─── Prompts ─────────────────────────────────────────────────────────────
+
 
 @mcp.prompt()
 def reflect_on_day() -> str:

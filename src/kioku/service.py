@@ -100,7 +100,9 @@ class KiokuService:
                 port=s.chroma_port,
             )
             store.count()  # test connection
-            log.info("ChromaDB auto-detect: using server mode (%s:%s)", s.chroma_host, s.chroma_port)
+            log.info(
+                "ChromaDB auto-detect: using server mode (%s:%s)", s.chroma_host, s.chroma_port
+            )
             return store
         except Exception:
             log.info("ChromaDB server not available, trying embedded mode")
@@ -130,18 +132,56 @@ class KiokuService:
         tags: list[str] | None = None,
     ) -> dict:
         """Save a memory entry. Stores text to markdown and indexes for search."""
-        entry = save_entry(self.settings.memory_dir, text, mood=mood, tags=tags)
-
         date = datetime.now(JST).strftime("%Y-%m-%d")
         content_hash = hashlib.sha256(text.encode()).hexdigest()
+
+        # Phase 7: Context-aware entity extraction with event_time
+        event_time: str | None = None
+        try:
+            # Get canonical entities for disambiguation
+            context_entities = self.graph_store.get_canonical_entities(limit=50)
+            extraction = self.extractor.extract(
+                text,
+                context_entities=context_entities,
+                processing_date=date,
+            )
+            event_time = extraction.event_time
+            if extraction.entities:
+                self.graph_store.upsert(
+                    extraction,
+                    date=date,
+                    timestamp="",
+                    source_hash=content_hash,
+                )
+                log.info(
+                    "Extracted %d entities, %d relationships, event_time=%s",
+                    len(extraction.entities),
+                    len(extraction.relationships),
+                    event_time,
+                )
+        except Exception as e:
+            log.warning("Entity extraction/graph indexing failed: %s", e)
+
+        # Save to markdown (source of truth)
+        entry = save_entry(
+            self.settings.memory_dir,
+            text,
+            mood=mood,
+            tags=tags,
+            event_time=event_time,
+        )
+
+        # Index in SQLite (primary document store)
         self.keyword_index.index(
             content=text,
             date=date,
             timestamp=entry.timestamp,
             mood=mood or "",
             content_hash=content_hash,
+            event_time=event_time or "",
         )
 
+        # Index in ChromaDB (vector similarity only)
         try:
             self.vector_store.add(
                 content=text,
@@ -149,21 +189,11 @@ class KiokuService:
                 timestamp=entry.timestamp,
                 mood=mood or "",
                 tags=tags,
+                content_hash=content_hash,
+                event_time=event_time or "",
             )
         except Exception as e:
             log.warning("Vector indexing failed: %s", e)
-
-        try:
-            extraction = self.extractor.extract(text)
-            if extraction.entities:
-                self.graph_store.upsert(extraction, date=date, timestamp=entry.timestamp)
-                log.info(
-                    "Extracted %d entities, %d relationships",
-                    len(extraction.entities),
-                    len(extraction.relationships),
-                )
-        except Exception as e:
-            log.warning("Entity extraction/graph indexing failed: %s", e)
 
         return {
             "status": "saved",
@@ -171,6 +201,7 @@ class KiokuService:
             "date": date,
             "mood": mood,
             "tags": tags,
+            "event_time": event_time,
             "indexed": True,
         }
 
@@ -278,11 +309,22 @@ class KiokuService:
         start_date: str | None = None,
         end_date: str | None = None,
         limit: int = 50,
+        sort_by: str = "processing_time",
     ) -> dict:
-        """Get a chronologically ordered sequence of memories."""
-        entries = self.keyword_index.get_timeline(start_date, end_date, limit)
+        """Get a chronologically ordered sequence of memories.
+
+        Args:
+            sort_by: "processing_time" (when recorded) or "event_time" (when it happened).
+        """
+        entries = self.keyword_index.get_timeline(
+            start_date,
+            end_date,
+            limit,
+            sort_by=sort_by,
+        )
         return {
             "count": len(entries),
+            "sort_by": sort_by,
             "timeline": entries,
         }
 
@@ -320,9 +362,7 @@ class KiokuService:
         else:
             for e in result.edges:
                 strength = (
-                    "Strongly"
-                    if e.weight >= 0.8
-                    else "Moderately" if e.weight >= 0.5 else "Weakly"
+                    "Strongly" if e.weight >= 0.8 else "Moderately" if e.weight >= 0.5 else "Weakly"
                 )
                 out.append(f"- **{strength} {e.rel_type.lower()}** to `{e.target}`")
                 if e.evidence:

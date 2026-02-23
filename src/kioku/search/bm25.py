@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from kioku.pipeline.keyword_writer import KeywordIndex, FTSResult
+from kioku.pipeline.keyword_writer import KeywordIndex
 
 
 @dataclass

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from kioku.pipeline.graph_writer import GraphStore, GraphSearchResult
+from kioku.pipeline.graph_writer import GraphStore
 from kioku.search.bm25 import SearchResult
 
 

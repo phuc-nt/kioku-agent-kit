@@ -18,6 +18,7 @@ class MemoryEntry:
     timestamp: str
     mood: str | None = None
     tags: list[str] | None = None
+    event_time: str | None = None  # YYYY-MM-DD — when the event actually happened
 
 
 def _get_today_file(memory_dir: Path) -> Path:
@@ -26,7 +27,13 @@ def _get_today_file(memory_dir: Path) -> Path:
     return memory_dir / f"{today}.md"
 
 
-def save_entry(memory_dir: Path, text: str, mood: str | None = None, tags: list[str] | None = None) -> MemoryEntry:
+def save_entry(
+    memory_dir: Path,
+    text: str,
+    mood: str | None = None,
+    tags: list[str] | None = None,
+    event_time: str | None = None,
+) -> MemoryEntry:
     """Append a memory entry to today's markdown file.
 
     Returns the created MemoryEntry with timestamp.
@@ -39,13 +46,15 @@ def save_entry(memory_dir: Path, text: str, mood: str | None = None, tags: list[
 
     # Build frontmatter block
     lines = []
-    lines.append(f"\n---\n")
-    lines.append(f"time: \"{timestamp}\"\n")
+    lines.append("\n---\n")
+    lines.append(f'time: "{timestamp}"\n')
     if mood:
-        lines.append(f"mood: \"{mood}\"\n")
+        lines.append(f'mood: "{mood}"\n')
     if tags:
         lines.append(f"tags: {tags}\n")
-    lines.append(f"---\n")
+    if event_time:
+        lines.append(f'event_time: "{event_time}"\n')
+    lines.append("---\n")
     lines.append(f"{text}\n")
 
     # If file doesn't exist, add a header
@@ -58,7 +67,7 @@ def save_entry(memory_dir: Path, text: str, mood: str | None = None, tags: list[
     with filepath.open("a", encoding="utf-8") as f:
         f.writelines(lines)
 
-    return MemoryEntry(text=text, timestamp=timestamp, mood=mood, tags=tags)
+    return MemoryEntry(text=text, timestamp=timestamp, mood=mood, tags=tags, event_time=event_time)
 
 
 def read_entries(memory_dir: Path, date: str | None = None) -> list[MemoryEntry]:
@@ -98,6 +107,7 @@ def _parse_entries(content: str) -> list[MemoryEntry]:
         timestamp = ""
         mood = None
         tags = None
+        event_time = None
 
         for line in frontmatter.split("\n"):
             line = line.strip()
@@ -109,9 +119,15 @@ def _parse_entries(content: str) -> list[MemoryEntry]:
                 raw = line.split(":", 1)[1].strip()
                 # Simple parsing for Python list repr
                 tags = [t.strip().strip("'\"") for t in raw.strip("[]").split(",") if t.strip()]
+            elif line.startswith("event_time:"):
+                event_time = line.split(":", 1)[1].strip().strip('"')
 
         if body:
-            entries.append(MemoryEntry(text=body, timestamp=timestamp, mood=mood, tags=tags))
+            entries.append(
+                MemoryEntry(
+                    text=body, timestamp=timestamp, mood=mood, tags=tags, event_time=event_time
+                )
+            )
 
     return entries
 

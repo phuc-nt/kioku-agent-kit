@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Protocol
 from dataclasses import dataclass, field
 
-from kioku.pipeline.extractor import Entity, Relationship, ExtractionResult
+from kioku.pipeline.extractor import ExtractionResult
 
 log = logging.getLogger(__name__)
 JST = timezone(timedelta(hours=7))
@@ -33,6 +33,7 @@ class GraphEdge:
     rel_type: str
     weight: float = 0.5
     evidence: str = ""
+    source_hash: str = ""  # content_hash linking back to SQLite for O(1) hydration
 
 
 @dataclass
@@ -47,10 +48,15 @@ class GraphSearchResult:
 class GraphStore(Protocol):
     """Protocol for graph stores."""
 
-    def upsert(self, extraction: ExtractionResult, date: str, timestamp: str) -> None: ...
+    def upsert(
+        self, extraction: ExtractionResult, date: str, timestamp: str, source_hash: str = ""
+    ) -> None: ...
     def search_entities(self, query: str, limit: int = 10) -> list[GraphNode]: ...
-    def traverse(self, entity_name: str, max_hops: int = 2, limit: int = 20) -> GraphSearchResult: ...
+    def traverse(
+        self, entity_name: str, max_hops: int = 2, limit: int = 20
+    ) -> GraphSearchResult: ...
     def find_path(self, source: str, target: str) -> GraphSearchResult: ...
+    def get_canonical_entities(self, limit: int = 50) -> list[str]: ...
 
 
 class FalkorGraphStore:
@@ -66,6 +72,7 @@ class FalkorGraphStore:
     def graph(self):
         if self._graph is None:
             from falkordb import FalkorDB
+
             db = FalkorDB(host=self.host, port=self.port)
             self._graph = db.select_graph(self.graph_name)
             self._ensure_schema()
@@ -78,9 +85,16 @@ class FalkorGraphStore:
         except Exception:
             pass  # Index may already exist
 
-    def upsert(self, extraction: ExtractionResult, date: str, timestamp: str) -> None:
+    def upsert(
+        self, extraction: ExtractionResult, date: str, timestamp: str, source_hash: str = ""
+    ) -> None:
         """Upsert entities and relationships into the graph."""
         now = datetime.now(JST).isoformat()
+        event_time = (
+            extraction.event_time
+            if hasattr(extraction, "event_time") and extraction.event_time
+            else date
+        )
 
         for entity in extraction.entities:
             self.graph.query(
@@ -98,9 +112,11 @@ class FalkorGraphStore:
                    MATCH (b:Entity {name: $target})
                    MERGE (a)-[r:RELATES {type: $rel_type}]->(b)
                    ON CREATE SET r.weight = $weight, r.evidence = $evidence,
-                                 r.created_at = $now, r.event_time = $date
+                                 r.created_at = $now, r.event_time = $event_time,
+                                 r.source_hash = $source_hash
                    ON MATCH SET r.weight = ($weight + r.weight) / 2,
-                                r.event_time = $date""",
+                                r.event_time = $event_time,
+                                r.source_hash = $source_hash""",
                 {
                     "source": rel.source,
                     "target": rel.target,
@@ -108,9 +124,21 @@ class FalkorGraphStore:
                     "weight": rel.weight,
                     "evidence": rel.evidence,
                     "now": now,
-                    "date": date,
+                    "event_time": event_time,
+                    "source_hash": source_hash,
                 },
             )
+
+    def get_canonical_entities(self, limit: int = 50) -> list[str]:
+        """Get top canonical entity names for context-aware extraction."""
+        result = self.graph.query(
+            """MATCH (e:Entity)
+               RETURN e.name
+               ORDER BY e.mention_count DESC
+               LIMIT $limit""",
+            {"limit": limit},
+        )
+        return [row[0] for row in result.result_set]
 
     def search_entities(self, query: str, limit: int = 10) -> list[GraphNode]:
         """Search for entities by name (case-insensitive contains)."""
@@ -124,8 +152,11 @@ class FalkorGraphStore:
         )
         return [
             GraphNode(
-                name=row[0], type=row[1], mention_count=row[2] or 0,
-                first_seen=row[3] or "", last_seen=row[4] or "",
+                name=row[0],
+                type=row[1],
+                mention_count=row[2] or 0,
+                first_seen=row[3] or "",
+                last_seen=row[4] or "",
             )
             for row in result.result_set
         ]
@@ -134,7 +165,9 @@ class FalkorGraphStore:
         """Multi-hop traversal from a seed entity."""
         result = self.graph.query(
             """MATCH (start:Entity {name: $name})
-               MATCH path = (start)-[r:RELATES*1..""" + str(max_hops) + """]->(connected:Entity)
+               MATCH path = (start)-[r:RELATES*1.."""
+            + str(max_hops)
+            + """]->(connected:Entity)
                RETURN start.name, start.type,
                       connected.name, connected.type,
                       [rel IN relationships(path) | rel.type] AS rel_types,
@@ -155,12 +188,15 @@ class FalkorGraphStore:
             nodes_map[tgt_name] = GraphNode(name=tgt_name, type=tgt_type)
 
             if rel_types:
-                edges.append(GraphEdge(
-                    source=src_name, target=tgt_name,
-                    rel_type=rel_types[-1] if rel_types else "",
-                    weight=weights[-1] if weights else 0.5,
-                    evidence=evidences[-1] if evidences else "",
-                ))
+                edges.append(
+                    GraphEdge(
+                        source=src_name,
+                        target=tgt_name,
+                        rel_type=rel_types[-1] if rel_types else "",
+                        weight=weights[-1] if weights else 0.5,
+                        evidence=evidences[-1] if evidences else "",
+                    )
+                )
 
         return GraphSearchResult(nodes=list(nodes_map.values()), edges=edges)
 
@@ -200,11 +236,14 @@ class FalkorGraphStore:
             for i, name in enumerate(names):
                 nodes.append(GraphNode(name=name, type=types[i] if i < len(types) else ""))
             for i in range(len(names) - 1):
-                edges.append(GraphEdge(
-                    source=names[i], target=names[i + 1],
-                    rel_type=rel_types[i] if i < len(rel_types) else "",
-                    evidence=evidences[i] if i < len(evidences) else "",
-                ))
+                edges.append(
+                    GraphEdge(
+                        source=names[i],
+                        target=names[i + 1],
+                        rel_type=rel_types[i] if i < len(rel_types) else "",
+                        evidence=evidences[i] if i < len(evidences) else "",
+                    )
+                )
 
         return GraphSearchResult(nodes=nodes, edges=edges, paths=paths)
 
@@ -216,7 +255,9 @@ class InMemoryGraphStore:
         self.nodes: dict[str, GraphNode] = {}
         self.edges: list[GraphEdge] = []
 
-    def upsert(self, extraction: ExtractionResult, date: str, timestamp: str) -> None:
+    def upsert(
+        self, extraction: ExtractionResult, date: str, timestamp: str, source_hash: str = ""
+    ) -> None:
         for entity in extraction.entities:
             key = entity.name.lower()
             if key in self.nodes:
@@ -224,16 +265,29 @@ class InMemoryGraphStore:
                 self.nodes[key].last_seen = date
             else:
                 self.nodes[key] = GraphNode(
-                    name=entity.name, type=entity.type,
-                    mention_count=1, first_seen=date, last_seen=date,
+                    name=entity.name,
+                    type=entity.type,
+                    mention_count=1,
+                    first_seen=date,
+                    last_seen=date,
                 )
 
         for rel in extraction.relationships:
-            self.edges.append(GraphEdge(
-                source=rel.source, target=rel.target,
-                rel_type=rel.rel_type, weight=rel.weight,
-                evidence=rel.evidence,
-            ))
+            self.edges.append(
+                GraphEdge(
+                    source=rel.source,
+                    target=rel.target,
+                    rel_type=rel.rel_type,
+                    weight=rel.weight,
+                    evidence=rel.evidence,
+                    source_hash=source_hash,
+                )
+            )
+
+    def get_canonical_entities(self, limit: int = 50) -> list[str]:
+        """Get top canonical entity names sorted by mention count."""
+        sorted_nodes = sorted(self.nodes.values(), key=lambda n: n.mention_count, reverse=True)
+        return [n.name for n in sorted_nodes[:limit]]
 
     def search_entities(self, query: str, limit: int = 10) -> list[GraphNode]:
         q = query.lower()
@@ -290,8 +344,13 @@ class InMemoryGraphStore:
                 edges = []
                 for i in range(len(path) - 1):
                     for e in self.edges:
-                        if (e.source.lower() == path[i].lower() and e.target.lower() == path[i+1].lower()) or \
-                           (e.target.lower() == path[i].lower() and e.source.lower() == path[i+1].lower()):
+                        if (
+                            e.source.lower() == path[i].lower()
+                            and e.target.lower() == path[i + 1].lower()
+                        ) or (
+                            e.target.lower() == path[i].lower()
+                            and e.source.lower() == path[i + 1].lower()
+                        ):
                             edges.append(e)
                             break
                 return GraphSearchResult(nodes=nodes, edges=edges, paths=[path])

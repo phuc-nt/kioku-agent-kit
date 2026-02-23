@@ -1,7 +1,6 @@
 """Tests for markdown storage layer."""
 
 import pytest
-from pathlib import Path
 from kioku.storage.markdown import save_entry, read_entries, list_dates
 
 

@@ -24,6 +24,7 @@ class OllamaEmbedder:
     def client(self):
         if self._client is None:
             import ollama
+
             self._client = ollama.Client(host=self.host)
         return self._client
 
