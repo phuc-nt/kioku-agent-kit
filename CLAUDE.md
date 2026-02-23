@@ -18,6 +18,7 @@ The user might ask you to implement the phases outlined in `docs/06-restructure-
 ## Testing Strategy
 1. **Integration Tests (`tests/`)**: Run `make test` to execute fast integration tests using mocks (FakeEmbedder, InMemoryGraphStore). Tests must maintain 100% pass rate.
 2. **End-to-End Tests**: Run `export $(grep -v '^#' .env | xargs) && python tests/e2e_mcp_client.py`. This acts as a real MCP Client via stdio, executing all 6 tools, 2 resources, and 3 prompts against real Live DBs and Anthropic API. Ensure it passes without errors when logic is changed.
+   - **⚠️ CRITICAL DATA WARNING:** When running E2E tests, ensure that you use a separate mock user or mock tenant. **DO NOT** modify, pollute, or overwrite the real Telegram user's data (e.g., `~/.kioku/users/telegram/` or their sessions in `~/.openclaw`). All test data must be completely isolated.
 
 ## Guidelines
 - Write strict type hints (`-> dict`, `-> list`, etc.).
