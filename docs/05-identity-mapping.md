@@ -59,3 +59,9 @@ For an Enterprise SaaS or large-scale rollout (e.g., Brain Communications Dev Br
 - [ ] Refactor `config.py` and `server.py` to allow dependency injection of storage clients per-request rather than relying on global singletons.
 - [ ] Investigate if `FastMCP` exposes arbitrary transport headers or allows custom `Context` dependencies in tool decorators.
 - [ ] Define the schema for the `user_mapping` table (can be built within FalkorDB or a lightweight SQLite DB initially).
+
+---
+
+## 📝 Issue Log: 2026-02-23
+- **Limitation Acknowledged:** While using a hardcoded `KIOKU_USER_ID` inside `~/.mcporter/mcporter.json` or `.env` provides strong isolation for a single test environment or single bot, it is completely static. 
+- **Improvement Needed:** We need a more flexible mechanism to receive and interpret the user's identity dynamically from Telegram (or any client proxy) at runtime. The MCP server shouldn't rely on being spawn-isolated per user via environment variables if we scale up. The ultimate goal is to parse the `tenant_id` from the incoming MCP request context, then dynamically switch the underlying database connections (SQLite paths, ChromaDB collections, FalkorDB graphs) without restarting the server.
