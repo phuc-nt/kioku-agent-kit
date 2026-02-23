@@ -5,8 +5,6 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-import chromadb
-
 from kioku.pipeline.embedder import EmbeddingProvider
 
 
@@ -21,18 +19,17 @@ class VectorStore:
         host: str | None = None,
         port: int | None = None,
     ):
+        import chromadb
+
         self.embedder = embedder
         self.collection_name = collection_name
 
         # Connect to ChromaDB
         if host and port:
-            # Client-server mode (Docker)
             self.client = chromadb.HttpClient(host=host, port=port)
         elif persist_dir:
-            # Persistent local mode
             self.client = chromadb.PersistentClient(path=str(persist_dir))
         else:
-            # In-memory mode (for tests)
             self.client = chromadb.EphemeralClient()
 
         self.collection = self.client.get_or_create_collection(

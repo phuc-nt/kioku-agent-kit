@@ -1,13 +1,9 @@
-"""Integration tests for MCP server tools."""
+"""Integration tests for Kioku — tests both service layer and MCP server tools."""
 
 import uuid
 import pytest
 from pathlib import Path
 
-from kioku.server import (
-    save_memory, search_memories, get_memories_by_date,
-    list_memory_dates, recall_related, explain_connection,
-)
 from kioku.config import Settings
 from kioku.pipeline.keyword_writer import KeywordIndex
 from kioku.pipeline.embedder import FakeEmbedder
@@ -30,47 +26,59 @@ def setup_test_env(tmp_path, monkeypatch):
         data_dir=tmp_path / "data",
     )
     test_settings.ensure_dirs()
-    monkeypatch.setattr(server_module, "settings", test_settings)
 
     # Override keyword index
     test_index = KeywordIndex(test_settings.sqlite_path)
-    monkeypatch.setattr(server_module, "keyword_index", test_index)
 
     if use_e2e:
-        # Use real services, test specific collections/graphs
         from kioku.pipeline.embedder import OllamaEmbedder
         from kioku.pipeline.extractor import ClaudeExtractor
         from kioku.pipeline.graph_writer import FalkorGraphStore
-        
+
         test_embedder = OllamaEmbedder(host="http://localhost:11434", model="nomic-embed-text")
         test_store = VectorStore(
-            embedder=test_embedder, 
+            embedder=test_embedder,
             collection_name=f"test_vec_{uuid.uuid4().hex[:8]}",
             host="localhost",
-            port=8000
+            port=8000,
         )
         test_extractor = ClaudeExtractor(api_key=os.environ.get("KIOKU_ANTHROPIC_API_KEY", ""))
         test_graph = FalkorGraphStore(
-            host="localhost", 
-            port=6379, 
-            graph_name=f"test_graph_{uuid.uuid4().hex[:8]}"
+            host="localhost",
+            port=6379,
+            graph_name=f"test_graph_{uuid.uuid4().hex[:8]}",
         )
     else:
-        # Override vector store (unique collection per test)
         test_embedder = FakeEmbedder()
-        test_store = VectorStore(embedder=test_embedder, collection_name=f"test_{uuid.uuid4().hex[:8]}")
-        
-        # Override graph store and extractor
+        test_store = VectorStore(
+            embedder=test_embedder, collection_name=f"test_{uuid.uuid4().hex[:8]}"
+        )
         test_graph = InMemoryGraphStore()
         test_extractor = FakeExtractor()
 
-    monkeypatch.setattr(server_module, "vector_store", test_store)
-    monkeypatch.setattr(server_module, "graph_store", test_graph)
-    monkeypatch.setattr(server_module, "extractor", test_extractor)
+    # Patch the _svc instance attributes (service layer owns the state now)
+    svc = server_module._svc
+    monkeypatch.setattr(svc, "settings", test_settings)
+    monkeypatch.setattr(svc, "keyword_index", test_index)
+    monkeypatch.setattr(svc, "vector_store", test_store)
+    monkeypatch.setattr(svc, "graph_store", test_graph)
+    monkeypatch.setattr(svc, "extractor", test_extractor)
 
     yield
 
     test_index.close()
+
+
+# ─── Import tool functions from server (thin wrappers) ─────────────────
+
+from kioku.server import (
+    save_memory,
+    search_memories,
+    get_timeline,
+    list_memory_dates,
+    recall_related,
+    explain_connection,
+)
 
 
 class TestSaveMemoryTool:
@@ -134,23 +142,11 @@ class TestExplainConnectionTool:
         result = explain_connection("Hùng", "stressed")
         assert result["from"] == "Hùng"
         assert result["to"] == "stressed"
-        # May or may not find a path depending on extraction
         assert "connected" in result
 
     def test_explain_not_connected(self):
         result = explain_connection("A_entity", "B_entity")
         assert result["connected"] is False
-
-
-class TestGetMemoriesByDateTool:
-    def test_get_today(self):
-        save_memory("Entry for today")
-        result = get_memories_by_date()
-        assert result["count"] >= 1
-
-    def test_get_empty_date(self):
-        result = get_memories_by_date(date="2020-01-01")
-        assert result["count"] == 0
 
 
 class TestListMemoryDatesTool:
@@ -163,64 +159,46 @@ class TestListMemoryDatesTool:
 
 from kioku import server as server_module
 
+
 class TestTimelineAndPatternsTools:
     def test_get_timeline(self, setup_test_env):
         server_module.save_memory("First event", mood="neutral", tags=["test1"])
         server_module.save_memory("Second event", mood="happy", tags=["test2"])
-        
+
         result = server_module.get_timeline(limit=10)
         assert result["count"] >= 2
-        
+
         timeline = result["timeline"]
-        # Timeline should be chronological (first event before second event)
         assert timeline[-2]["text"] == "First event"
         assert timeline[-1]["text"] == "Second event"
-
-    def test_get_life_patterns(self, setup_test_env):
-        server_module.save_memory("A", mood="happy", tags=["work", "coding"])
-        server_module.save_memory("B", mood="happy", tags=["work"])
-        server_module.save_memory("C", mood="stressed", tags=["coding"])
-        
-        result = server_module.get_life_patterns(days_back=7)
-        assert result["total_entries"] >= 3
-        
-        moods = {m["mood"]: m["count"] for m in result["frequent_moods"]}
-        tags = {t["tag"]: t["count"] for t in result["frequent_topics"]}
-        
-        assert moods.get("happy", 0) >= 2
-        assert moods.get("stressed", 0) >= 1
-        assert tags.get("work", 0) >= 2
-        assert tags.get("coding", 0) >= 2
 
 
 class TestResourcesAndPrompts:
     def test_memory_resource(self, setup_test_env):
         server_module.save_memory("Test string in memory", mood="happy")
-        from kioku.config import settings
         from datetime import datetime
+
         today = datetime.now().strftime("%Y-%m-%d")
-        
+
         res = server_module.read_memory_resource(today)
         assert "Test string in memory" in res
-        
+
         res_empty = server_module.read_memory_resource("1900-01-01")
         assert "No memories found" in res_empty
 
     def test_entity_resource(self, setup_test_env):
         server_module.save_memory("Hôm nay đi tập gym với Minh, rất vui.")
-        # Entity "Minh" should be extracted
         res = server_module.read_entity_resource("Minh")
         assert "Entity Profile: Minh" in res or "Entity 'Minh' not found" in res
 
     def test_prompts(self):
-        # Prompts are static string generations, just make sure they don't crash
         prompt1 = server_module.reflect_on_day()
         assert "kioku://memories/" in prompt1
         assert "overall emotional tone" in prompt1
-        
+
         prompt2 = server_module.analyze_relationships("Hùng")
         assert "kioku://entities/Hùng" in prompt2
         assert "What is my primary emotional response" in prompt2
-        
+
         prompt3 = server_module.weekly_review()
         assert "weekly retrospective" in prompt3

@@ -31,9 +31,11 @@ class Settings(BaseSettings):
     def falkordb_graph(self) -> str:
         return "kioku_kg" if self.user_id == "default" else f"kioku_kg_{self.user_id}"
 
-    # ChromaDB (Phase 2)
+    # ChromaDB
+    chroma_mode: str = "auto"  # "server", "embedded", or "auto" (try server → embedded → skip)
     chroma_host: str = "localhost"
     chroma_port: int = 8000
+    chroma_persist_dir: Path | None = None  # Default: ~/.kioku/data/chroma
 
     # FalkorDB (Phase 3)
     falkordb_host: str = "localhost"
@@ -61,6 +63,19 @@ class Settings(BaseSettings):
             object.__setattr__(self, "data_dir", Path(os.path.expanduser(f"{base_dir}/data")))
         else:
             object.__setattr__(self, "data_dir", Path(os.path.expanduser(str(self.data_dir))))
+
+        if not self.chroma_persist_dir or str(self.chroma_persist_dir) in ("", "."):
+            object.__setattr__(
+                self,
+                "chroma_persist_dir",
+                Path(os.path.expanduser(str(self.data_dir))) / "chroma",
+            )
+        else:
+            object.__setattr__(
+                self,
+                "chroma_persist_dir",
+                Path(os.path.expanduser(str(self.chroma_persist_dir))),
+            )
 
     def ensure_dirs(self) -> None:
         """Create required directories if they don't exist."""

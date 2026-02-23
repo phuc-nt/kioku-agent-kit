@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+        extras: ["cli", "mcp", "full"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --extra ${{ matrix.extras }} --extra dev
+
+      - name: Lint
+        if: matrix.extras == 'full' && matrix.python-version == '3.12'
+        run: |
+          uv run ruff check src/ tests/
+          uv run ruff format --check src/ tests/
+
+      - name: Run integration tests
+        if: matrix.extras == 'full'
+        run: uv run python -m pytest tests/test_server.py -v
+
+      - name: Verify CLI import
+        if: matrix.extras == 'cli' || matrix.extras == 'full'
+        run: uv run kioku --help
+
+      - name: Verify MCP import
+        if: matrix.extras == 'mcp' || matrix.extras == 'full'
+        run: uv run python -c "from kioku.server import mcp; print(f'MCP server: {mcp.name}')"
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Build wheel
+        run: uv build
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/

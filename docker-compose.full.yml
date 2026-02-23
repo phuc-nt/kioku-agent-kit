@@ -1,0 +1,55 @@
+# Kioku Full Stack — Kioku + ChromaDB server + FalkorDB + Ollama
+# All features enabled: BM25 + Vector Search + Knowledge Graph
+#
+# Usage: docker compose -f docker-compose.full.yml up -d
+
+services:
+  kioku:
+    build: .
+    volumes:
+      - kioku_data:/data
+    environment:
+      - KIOKU_CHROMA_MODE=server
+      - KIOKU_CHROMA_HOST=chromadb
+      - KIOKU_CHROMA_PORT=8000
+      - KIOKU_FALKORDB_HOST=falkordb
+      - KIOKU_FALKORDB_PORT=6379
+      - KIOKU_OLLAMA_HOST=http://ollama:11434
+      - KIOKU_OLLAMA_MODEL=nomic-embed-text
+      - KIOKU_ANTHROPIC_API_KEY=${KIOKU_ANTHROPIC_API_KEY:-}
+    depends_on:
+      - chromadb
+      - falkordb
+      - ollama
+
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=false
+    restart: unless-stopped
+
+  falkordb:
+    image: falkordb/falkordb:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - falkordb_data:/data
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  kioku_data:
+  chroma_data:
+  falkordb_data:
+  ollama_data:

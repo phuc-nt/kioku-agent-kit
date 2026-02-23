@@ -1,100 +1,155 @@
-# Kioku MCP Server 🧠
+# Kioku — Personal Memory Agent
 
-**Kioku** (記憶 — *ký ức*) là một MCP Server đóng vai trợ lý lưu trữ ký ức cá nhân. Nhắn bất kỳ suy nghĩ, sự kiện, cảm xúc nào → Kioku lưu trữ, hiểu ngữ nghĩa, và truy vấn lại theo **ý nghĩa sâu** — giúp bạn lý giải bản thân và không bao giờ quên các ký ức quan trọng.
+**Kioku** (記憶 — *memory*) is a personal memory agent with tri-hybrid search. Save any thought, event, or feeling — Kioku stores it, understands the meaning, and retrieves it by **deep semantic context**.
 
-## Tính năng
+```
+You → "Went to coffee with Mai, discussed the OpenClaw project"
+Kioku → saves to markdown, indexes BM25 + vector + knowledge graph
+You → "Who is Mai?" or "What do I know about OpenClaw?"
+Kioku → traverses the graph, finds connections, returns evidence
+```
 
-- 📝 **Zero-friction capture** — Nhắn tin tự do, Kioku tự lưu + index
-- 🔍 **Tri-hybrid Search** — Keyword (BM25) + Semantic (Vector) + Knowledge Graph
-- 🧩 **MCP Protocol** — Dùng được với OpenClaw, Claude Desktop, Cursor
-- 🔒 **Local-first** — Mọi thứ chạy trên máy, dữ liệu thuộc về bạn
-- 📄 **Markdown = Source of Truth** — Dữ liệu gốc luôn đọc được bằng mắt
+## Features
+
+- **Tri-hybrid Search** — BM25 keyword + semantic vector + knowledge graph traversal, fused with RRF reranking
+- **Dual Interface** — CLI for AI agents (OpenClaw, etc.) + MCP server for Claude Desktop / Cursor
+- **Local-first** — All data on your machine. Markdown files are the source of truth
+- **Graceful degradation** — Missing ChromaDB? BM25 still works. No FalkorDB? Skip graph. No Ollama? Fake embeddings
+
+## Quick Start
+
+### Option 1: CLI only (fastest)
+
+```bash
+pip install kioku-mcp[cli,vector]
+kioku save "First memory — testing Kioku" --mood happy --tags test
+kioku search "test"
+kioku dates
+```
+
+### Option 2: Full stack with Docker
+
+```bash
+git clone https://github.com/phuc-nt/kioku_mcp.git && cd kioku_mcp
+cp .env.example .env  # edit KIOKU_ANTHROPIC_API_KEY
+
+# Start all databases
+docker compose -f docker-compose.full.yml up -d
+
+# Install with all features
+pip install -e ".[full,dev]"
+
+# Test
+make test
+kioku search "test"
+```
+
+### Option 3: MCP server (for Claude Desktop / Cursor)
+
+```bash
+pip install kioku-mcp[mcp,vector,graph]
+python -m kioku.server
+```
+
+## Install Options
+
+| Install command | What you get |
+|---|---|
+| `pip install kioku-mcp[cli]` | CLI only (BM25 search) |
+| `pip install kioku-mcp[cli,vector]` | CLI + semantic search (ChromaDB + Ollama) |
+| `pip install kioku-mcp[mcp]` | MCP server only |
+| `pip install kioku-mcp[full]` | Everything: CLI + MCP + vector + graph |
+
+## Architecture
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    Interface Layer                        │
+│                                                          │
+│   server.py (MCP)              cli.py (Typer CLI)        │
+│   @mcp.tool()                  @app.command()            │
+│         │                            │                   │
+│         └────────────┬───────────────┘                   │
+│                      ▼                                   │
+│             service.py (KiokuService)                    │
+│             Single source of truth                       │
+│                      │                                   │
+│        ┌─────────────┼─────────────┐                     │
+│        ▼             ▼             ▼                     │
+│   pipeline/      search/      storage/                   │
+│  (indexing)    (retrieval)   (markdown)                   │
+│        │             │             │                      │
+│        ▼             ▼             ▼                     │
+│   ChromaDB      FalkorDB      SQLite FTS5               │
+│   (vector)      (graph)       (keyword)                  │
+└──────────────────────────────────────────────────────────┘
+```
+
+## CLI Commands
+
+| Command | Example |
+|---|---|
+| `kioku save` | `kioku save "Đi ăn phở với Minh" --mood happy --tags food,friend` |
+| `kioku search` | `kioku search "dự án AI" --limit 5` |
+| `kioku recall` | `kioku recall "Minh" --hops 2` |
+| `kioku explain` | `kioku explain "Minh" "AI"` |
+| `kioku dates` | `kioku dates` |
+| `kioku timeline` | `kioku timeline --from 2026-02-01 --to 2026-02-28` |
+
+## MCP Interface
+
+**6 Tools:** `save_memory`, `search_memories`, `recall_related`, `explain_connection`, `list_memory_dates`, `get_timeline`
+
+**2 Resources:** `kioku://memories/{date}`, `kioku://entities/{entity}`
+
+**3 Prompts:** `reflect_on_day`, `analyze_relationships`, `weekly_review`
+
+## Docker
+
+```bash
+# Minimal: Kioku + Ollama (embedded ChromaDB, no graph)
+docker compose -f docker-compose.minimal.yml up -d
+
+# Full: Kioku + ChromaDB + FalkorDB + Ollama
+docker compose -f docker-compose.full.yml up -d
+
+# Use CLI inside container
+docker compose exec kioku kioku search "test"
+```
 
 ## Tech Stack
 
 | Component | Technology |
 |---|---|
-| MCP Server | Python + FastMCP |
-| Vector DB | ChromaDB (Docker) |
-| Graph DB | FalkorDB (Docker) |
+| Core | Python 3.12+ / Pydantic |
+| CLI | Typer |
+| MCP Server | FastMCP |
+| Vector DB | ChromaDB (server or embedded) |
+| Graph DB | FalkorDB |
 | Keyword Index | SQLite FTS5 |
-| Embedding | Ollama (local) |
-| Entity Extraction | Claude Haiku 4.5 (API) |
+| Embedding | Ollama (`nomic-embed-text`) |
+| Entity Extraction | Claude Haiku 4.5 (Anthropic API) |
 
-## Quick Start
+## Development
 
 ```bash
-# Clone
-git clone git@github.com:phuc-nt/kioku_mcp.git
-cd kioku_mcp
+git clone https://github.com/phuc-nt/kioku_mcp.git && cd kioku_mcp
+pip install -e ".[full,dev]"
+docker compose up -d          # databases
 
-# Setup Python env
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-
-# Copy env config
-cp .env.example .env
-
-# Start DBs (Phase 2+)
-docker compose up -d
-
-# Run tests
-make test
-
-# Run MCP server
-python -m kioku.server
+make test                     # integration tests (16 tests, mocked DBs)
+python tests/e2e_mcp_client.py  # MCP E2E (real DBs)
+python tests/e2e_cli.py         # CLI E2E (real DBs)
+make lint                     # ruff check + format
 ```
-
-## Project Structure
-
-```
-src/kioku/
-├── server.py                 # FastMCP entry point
-├── config.py                 # Settings
-├── storage/markdown.py       # Markdown read/write (Source of Truth)
-├── pipeline/
-│   └── keyword_writer.py     # SQLite FTS5 indexing
-├── search/
-│   ├── bm25.py               # Keyword search
-│   └── reranker.py           # RRF fusion
-└── tools/                    # (Phase 2-3)
-```
-
-## MCP Tools
-
-| Tool | Description |
-|---|---|
-| `save_memory` | Lưu ký ức mới (text + mood + tags) |
-| `search_memories` | Tìm kiếm tri-hybrid |
-| `get_memories_by_date` | Xem nhật ký theo ngày |
-| `list_memory_dates` | Liệt kê các ngày có nhật ký |
-| `recall_related` | Truy xuất mạng quan hệ đa chiều từ một người/sự vật |
-| `explain_connection` | Phân tích mối liên kết giữa 2 thực thể |
-| `get_timeline` | Lấy dòng thời gian các sự kiện |
-| `get_life_patterns` | Thống kê xu hướng tâm trạng và chủ đề |
-
-## MCP Resources & Prompts
-
-- **Resources**: `kioku://memories/{date}`, `kioku://entities/{entity}`
-- **Prompts**: `reflect_on_day`, `analyze_relationships`, `weekly_review`
-
-## Roadmap
-
-- [x] **Phase 1** — Save + Keyword Search (BM25)
-- [x] **Phase 2** — Vector Search (ChromaDB + Ollama)
-- [x] **Phase 3** — Knowledge Graph (FalkorDB + Entity Extraction)
-- [x] **Phase 4** — MCP Resources, Prompts & Polish
-- [ ] **Phase 5** — OpenClaw Integration
 
 ## Docs
 
-- [`docs/01-requirements.md`](docs/01-requirements.md) — Requirements
-- [`docs/02-system-design.md`](docs/02-system-design.md) — System Design & Tech Stack
-- [`docs/03-implementation-plan.md`](docs/03-implementation-plan.md) — Implementation Plan
-- [`docs/DEVLOG.md`](docs/DEVLOG.md) — Daily Progress
-- [`docs/ISSUES.md`](docs/ISSUES.md) — Issue Tracker
+- [Requirements](docs/01-requirements.md)
+- [System Design](docs/02-system-design.md)
+- [Restructure Plan](docs/06-restructure-plan.md)
+- [Dev Log](docs/DEVLOG.md) | [Restructure Log](docs/DEVLOG-restructure.md)
 
 ## License
 
-Private project.
+MIT

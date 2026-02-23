@@ -62,11 +62,6 @@ async def run_e2e():
 
                 today_str = datetime.date.today().isoformat()
 
-                # 6. Test Tool: get_memories_by_date
-                print(f"\n[TEST] Tool: get_memories_by_date for {today_str}")
-                by_date_res = await session.call_tool("get_memories_by_date", {"date": today_str})
-                print(f"🔹 Result: {by_date_res.content[0].text if by_date_res.content else by_date_res}")
-
                 # 7. Test Tool: list_memory_dates
                 print("\n[TEST] Tool: list_memory_dates")
                 dates_res = await session.call_tool("list_memory_dates", {})
@@ -76,11 +71,6 @@ async def run_e2e():
                 print("\n[TEST] Tool: explain_connection")
                 explain_res = await session.call_tool("explain_connection", {"entity_a": "Mai", "entity_b": "OpenClaw"})
                 print(f"🔹 Result: {explain_res.content[0].text if explain_res.content else explain_res}")
-
-                # 9. Test Tool: get_life_patterns
-                print("\n[TEST] Tool: get_life_patterns")
-                patterns_res = await session.call_tool("get_life_patterns", {"days_back": 30})
-                print(f"🔹 Result: {patterns_res.content[0].text if patterns_res.content else patterns_res}")
 
                 # 10. Liệt kê Resources
                 resources_response = await session.list_resources()

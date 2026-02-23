@@ -1101,52 +1101,62 @@ name = "kioku-mcp"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "fastmcp" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
 ]
 
 [package.optional-dependencies]
-all = [
-    { name = "anthropic" },
-    { name = "chromadb" },
-    { name = "falkordb" },
-    { name = "ollama" },
+cli = [
+    { name = "typer" },
 ]
 dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
 ]
-phase2 = [
+full = [
+    { name = "anthropic" },
     { name = "chromadb" },
+    { name = "falkordb" },
+    { name = "fastmcp" },
     { name = "ollama" },
+    { name = "typer" },
 ]
-phase3 = [
+graph = [
     { name = "anthropic" },
     { name = "falkordb" },
+]
+mcp = [
+    { name = "fastmcp" },
+]
+vector = [
+    { name = "chromadb" },
+    { name = "ollama" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "anthropic", marker = "extra == 'all'", specifier = ">=0.40" },
-    { name = "anthropic", marker = "extra == 'phase3'", specifier = ">=0.40" },
-    { name = "chromadb", marker = "extra == 'all'", specifier = ">=0.6" },
-    { name = "chromadb", marker = "extra == 'phase2'", specifier = ">=0.6" },
-    { name = "falkordb", marker = "extra == 'all'", specifier = ">=1.0" },
-    { name = "falkordb", marker = "extra == 'phase3'", specifier = ">=1.0" },
-    { name = "fastmcp", specifier = ">=2.0.0" },
-    { name = "ollama", marker = "extra == 'all'", specifier = ">=0.4" },
-    { name = "ollama", marker = "extra == 'phase2'", specifier = ">=0.4" },
+    { name = "anthropic", marker = "extra == 'full'", specifier = ">=0.40" },
+    { name = "anthropic", marker = "extra == 'graph'", specifier = ">=0.40" },
+    { name = "chromadb", marker = "extra == 'full'", specifier = ">=0.6" },
+    { name = "chromadb", marker = "extra == 'vector'", specifier = ">=0.6" },
+    { name = "falkordb", marker = "extra == 'full'", specifier = ">=1.0" },
+    { name = "falkordb", marker = "extra == 'graph'", specifier = ">=1.0" },
+    { name = "fastmcp", marker = "extra == 'full'", specifier = ">=2.0.0" },
+    { name = "fastmcp", marker = "extra == 'mcp'", specifier = ">=2.0.0" },
+    { name = "ollama", marker = "extra == 'full'", specifier = ">=0.4" },
+    { name = "ollama", marker = "extra == 'vector'", specifier = ">=0.4" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-settings", specifier = ">=2.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8" },
+    { name = "typer", marker = "extra == 'cli'", specifier = ">=0.24.1" },
+    { name = "typer", marker = "extra == 'full'", specifier = ">=0.24.1" },
 ]
-provides-extras = ["phase2", "phase3", "all", "dev"]
+provides-extras = ["cli", "mcp", "vector", "graph", "full", "dev"]
 
 [[package]]
 name = "kubernetes"

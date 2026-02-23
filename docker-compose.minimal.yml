@@ -1,0 +1,30 @@
+# Kioku Minimal Stack — Kioku + Ollama only
+# ChromaDB runs in embedded mode, no FalkorDB (graph features disabled)
+#
+# Usage: docker compose -f docker-compose.minimal.yml up -d
+
+services:
+  kioku:
+    build: .
+    volumes:
+      - kioku_data:/data
+    environment:
+      - KIOKU_CHROMA_MODE=embedded
+      - KIOKU_OLLAMA_HOST=http://ollama:11434
+      - KIOKU_OLLAMA_MODEL=nomic-embed-text
+    depends_on:
+      - ollama
+    # Default CMD is "mcp" — override for CLI:
+    # docker compose -f docker-compose.minimal.yml exec kioku kioku search "test"
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  kioku_data:
+  ollama_data:
