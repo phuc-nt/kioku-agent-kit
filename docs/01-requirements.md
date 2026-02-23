@@ -21,12 +21,11 @@ Kioku là một MCP Server đóng vai trợ lý lưu trữ ký ức cá nhân (d
 ### FR3 — Truy vấn liên kết (Recall & Explain)
 - Từ một entity, đi dọc theo graph edges để tìm các sự kiện liên quan
 - Giải thích mối liên hệ giữa 2 sự kiện/thực thể bất kỳ
-- Nhận diện patterns lặp lại theo thời gian (VD: "stress tăng mỗi cuối tháng")
 
 ### FR4 — Xem lại ký ức (Browse)
-- Xem nhật ký theo ngày cụ thể
-- Xem danh sách entities theo loại (people, emotions, places...)
-- Xem timeline các sự kiện trong khoảng thời gian
+- Xem timeline các sự kiện trong khoảng thời gian theo thứ tự thời gian
+- Xem danh sách các ngày đã ghi chú nhật ký
+- Lấy danh sách entities hoặc thống kê cơ bản thông qua MCP resources
 
 ### FR5 — Prompt Templates
 - `reflect_on_day`: Hồi tưởng cuối ngày

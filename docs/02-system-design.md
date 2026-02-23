@@ -116,10 +116,10 @@ CREATE VIRTUAL TABLE memory_fts USING fts5(
 |---|---|---|
 | `save_memory` | Lưu ký ức mới | `text`, `mood?`, `tags?` |
 | `search_memories` | Tri-hybrid search | `query`, `limit?`, `date_from?`, `date_to?` |
-| `recall_related` | Graph traversal từ entity | `entity`, `max_hops?`, `rel_types?` |
-| `get_timeline` | Xem sự kiện theo timeline | `start_date`, `end_date` |
+| `get_timeline` | Xem sự kiện theo timeline | `start_date`, `end_date`, `limit?` |
+| `list_memory_dates` | Liệt kê các ngày có nhật ký | |
+| `recall_related` | Graph traversal từ entity | `entity`, `max_hops?`, `limit?` |
 | `explain_connection` | Giải thích liên kết A↔B | `entity_a`, `entity_b` |
-| `get_life_patterns` | Phát hiện patterns lặp | `topic`, `timeframe` |
 
 ### Resources
 | URI | Mô tả |

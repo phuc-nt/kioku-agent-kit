@@ -126,7 +126,7 @@ src/kioku/
 
 1. Tạo `src/kioku/service.py` chứa class `KiokuService`:
    - Di chuyển toàn bộ phần khởi tạo infrastructure (embedder, vector_store, graph_store, extractor, keyword_index) vào `__init__`.
-   - Di chuyển toàn bộ phần thân logic của 8 tool functions thành 8 methods trong class.
+   - Di chuyển toàn bộ phần thân logic của 6 tool functions thành 6 methods trong class.
    - Di chuyển phần logic của 2 resources và 3 prompts thành methods tương ứng.
 2. Cập nhật `server.py`:
    - Import `KiokuService`, khởi tạo một instance `_svc`.
@@ -137,24 +137,24 @@ src/kioku/
 4. Test thủ công qua mcporter — đảm bảo OpenClaw agent hoạt động y hệt cũ.
 
 **Definition of Done:**
-- [ ] `service.py` tồn tại với class `KiokuService` chứa đủ 8 public methods tương ứng 8 MCP tools.
+- [ ] `service.py` tồn tại với class `KiokuService` chứa đủ 6 public methods tương ứng 6 MCP tools.
 - [ ] `server.py` không còn chứa business logic — mỗi `@mcp.tool()` chỉ là 1-3 dòng delegate.
 - [ ] Không có code duplication giữa `server.py` và `service.py`.
 - [ ] `pytest` pass 100% — không regression.
-- [ ] `mcporter call kioku.<tool>` hoạt động đúng cho tất cả 8 tools.
+- [ ] `mcporter call kioku.<tool>` hoạt động đúng cho tất cả 6 tools.
 - [ ] Kioku agent trên Telegram hoạt động bình thường (test save + search + recall).
 
 ---
 
 ### Phase 1 — Thêm CLI Interface
 
-**Mục tiêu:** Tạo `cli.py` dùng Typer, expose đủ 8 commands tương ứng 8 tools. Agent Kioku có thể chuyển sang dùng CLI thay vì mcporter.
+**Mục tiêu:** Tạo `cli.py` dùng Typer, expose đủ 6 commands tương ứng 6 tools. Agent Kioku có thể chuyển sang dùng CLI thay vì mcporter.
 
 **Việc cần làm:**
 
 1. Thêm `typer>=0.12` vào `[project.dependencies]` (hoặc optional, tùy quyết định Phase 3).
 2. Tạo `src/kioku/cli.py`:
-   - 8 commands: `save`, `search`, `recall`, `connect`, `day`, `dates`, `timeline`, `patterns`.
+   - 6 commands: `save`, `search`, `recall`, `explain`, `dates`, `timeline`.
    - Mỗi command gọi `KiokuService.<method>()`.
    - Output JSON ra stdout (ensure_ascii=False cho tiếng Việt).
    - Mỗi command có `--help` tự giải thích.
@@ -169,7 +169,7 @@ src/kioku/
 **Definition of Done:**
 - [ ] `kioku --help` hiển thị danh sách commands.
 - [ ] `kioku <command> --help` hiển thị hướng dẫn cho từng command.
-- [ ] Tất cả 8 commands hoạt động đúng, output JSON hợp lệ.
+- [ ] Tất cả 6 commands hoạt động đúng, output JSON hợp lệ.
 - [ ] `kioku save "test" --mood happy --tags work,test` → lưu thành công, return JSON.
 - [ ] `kioku search "test" --limit 5` → trả kết quả search.
 - [ ] CLI tests pass.
