@@ -40,9 +40,15 @@ class KeywordIndex:
                 date TEXT NOT NULL,
                 mood TEXT DEFAULT '',
                 timestamp TEXT NOT NULL,
-                content_hash TEXT UNIQUE NOT NULL
+                content_hash TEXT UNIQUE NOT NULL,
+                tags TEXT DEFAULT '[]'
             )
         """)
+        # Compatibility with older DBs
+        try:
+            cur.execute("ALTER TABLE memories ADD COLUMN tags TEXT DEFAULT '[]'")
+        except sqlite3.OperationalError:
+            pass
         # FTS5 virtual table linked to memories
         cur.execute("""
             CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
@@ -75,21 +81,25 @@ class KeywordIndex:
         timestamp: str,
         mood: str = "",
         content_hash: str = "",
+        tags: list[str] | None = None,
     ) -> int:
         """Index a memory entry. Returns the row id.
 
         Skips duplicates based on content_hash.
         """
         import hashlib
+        import json
 
         if not content_hash:
             content_hash = hashlib.sha256(content.encode()).hexdigest()
 
+        tags_str = json.dumps(tags or [])
+
         cur = self.conn.cursor()
         try:
             cur.execute(
-                "INSERT INTO memories (content, date, mood, timestamp, content_hash) VALUES (?, ?, ?, ?, ?)",
-                (content, date, mood, timestamp, content_hash),
+                "INSERT INTO memories (content, date, mood, timestamp, content_hash, tags) VALUES (?, ?, ?, ?, ?, ?)",
+                (content, date, mood, timestamp, content_hash, tags_str),
             )
             self.conn.commit()
             return cur.lastrowid  # type: ignore
@@ -139,6 +149,64 @@ class KeywordIndex:
         cur = self.conn.cursor()
         cur.execute("SELECT COUNT(*) FROM memories")
         return cur.fetchone()[0]
+
+    def get_by_date(self, date: str) -> list[dict]:
+        """Get all memories for a specific date from SQLite."""
+        cur = self.conn.cursor()
+        cur.execute("SELECT content, date, mood, timestamp, tags FROM memories WHERE date = ? ORDER BY timestamp ASC", (date,))
+        import json
+        return [
+            {
+                "text": r[0],
+                "date": r[1],
+                "mood": r[2],
+                "timestamp": r[3],
+                "tags": json.loads(r[4]) if r[4] else []
+            }
+            for r in cur.fetchall()
+        ]
+
+    def get_timeline(self, start_date: str | None = None, end_date: str | None = None, limit: int = 50) -> list[dict]:
+        """Get timeline bounded by dates, directly from SQLite."""
+        query = "SELECT content, date, mood, timestamp, tags FROM memories"
+        params = []
+        conditions = []
+        
+        if start_date:
+            conditions.append("date >= ?")
+            params.append(start_date)
+        if end_date:
+            conditions.append("date <= ?")
+            params.append(end_date)
+            
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+            
+        query += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
+        
+        cur = self.conn.cursor()
+        cur.execute(query, tuple(params))
+        import json
+        
+        results = [
+            {
+                "text": r[0],
+                "date": r[1],
+                "mood": r[2],
+                "timestamp": r[3],
+                "tags": json.loads(r[4]) if r[4] else []
+            }
+            for r in cur.fetchall()
+        ]
+        results.reverse() # chronological relative to the slice
+        return results
+
+    def get_dates(self) -> list[str]:
+        """List all unique dates in the database."""
+        cur = self.conn.cursor()
+        cur.execute("SELECT DISTINCT date FROM memories ORDER BY date DESC")
+        return [r[0] for r in cur.fetchall()]
 
     def close(self) -> None:
         """Close the database connection."""

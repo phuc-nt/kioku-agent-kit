@@ -156,8 +156,12 @@ def search_memories(
         date_from: Optional start date filter (YYYY-MM-DD).
         date_to: Optional end date filter (YYYY-MM-DD).
     """
+    # Clean query for FTS5 to prevent syntax errors (e.g., from commas)
+    import re
+    clean_query = re.sub(r'[^\w\s]', ' ', query)
+    
     # BM25 keyword search
-    bm25_results = bm25_search(keyword_index, query, limit=limit * 3)
+    bm25_results = bm25_search(keyword_index, clean_query, limit=limit * 3)
 
     # Semantic vector search
     vec_results = vector_search(vector_store, query, limit=limit * 3)
@@ -269,36 +273,11 @@ def explain_connection(entity_a: str, entity_b: str) -> dict:
     }
 
 
-@mcp.tool()
-def get_memories_by_date(date: str | None = None) -> dict:
-    """Read all memory entries for a specific date.
-
-    Args:
-        date: Date in YYYY-MM-DD format. If not provided, returns today's entries.
-    """
-    entries = read_entries(settings.memory_dir, date=date)
-    if date is None:
-        date = datetime.now(JST).strftime("%Y-%m-%d")
-
-    return {
-        "date": date,
-        "count": len(entries),
-        "entries": [
-            {
-                "text": e.text,
-                "timestamp": e.timestamp,
-                "mood": e.mood,
-                "tags": e.tags,
-            }
-            for e in entries
-        ],
-    }
-
 
 @mcp.tool()
 def list_memory_dates() -> dict:
-    """List all dates that have memory entries."""
-    dates = list_dates(settings.memory_dir)
+    """List all dates that have memory entries from SQLite Database."""
+    dates = keyword_index.get_dates()
     return {
         "count": len(dates),
         "dates": dates,
@@ -307,80 +286,21 @@ def list_memory_dates() -> dict:
 
 @mcp.tool()
 def get_timeline(start_date: str | None = None, end_date: str | None = None, limit: int = 50) -> dict:
-    """Get a chronologically ordered sequence of memories.
+    """Get a chronologically ordered sequence of memories from SQLite Database.
 
     Args:
         start_date: Start date (YYYY-MM-DD) inclusive.
         end_date: End date (YYYY-MM-DD) inclusive.
         limit: Max number of entries to return (default 50).
     """
-    dates = list_dates(settings.memory_dir)
-    if start_date:
-        dates = [d for d in dates if d >= start_date]
-    if end_date:
-        dates = [d for d in dates if d <= end_date]
-
-    # Read from most recent backward, or oldest forward? Timeline usually means chronological.
-    # Let's read chronologically but limit to recent (so we slice at the end).
-    all_entries = []
-    # Read backward to easily apply limit to most recent ones inside that range
-    for d in reversed(dates):
-        entries = read_entries(settings.memory_dir, date=d)
-        for e in reversed(entries):
-            all_entries.append({
-                "date": d,
-                "timestamp": e.timestamp,
-                "mood": e.mood,
-                "tags": e.tags,
-                "text": e.text
-            })
-            if len(all_entries) >= limit:
-                break
-        if len(all_entries) >= limit:
-            break
-
-    # Reverse back to chronological
-    all_entries.reverse()
+    entries = keyword_index.get_timeline(start_date, end_date, limit)
 
     return {
-        "count": len(all_entries),
-        "timeline": all_entries
+        "count": len(entries),
+        "timeline": entries
     }
 
 
-@mcp.tool()
-def get_life_patterns(days_back: int = 30) -> dict:
-    """Analyze memory entries over recent days to find patterns in mood and tags.
-    
-    Args:
-        days_back: Number of days to look back for pattern extraction.
-    """
-    dates = list_dates(settings.memory_dir)[-days_back:]
-    
-    mood_counts = {}
-    tag_counts = {}
-    total_entries = 0
-    
-    for d in dates:
-        entries = read_entries(settings.memory_dir, date=d)
-        for e in entries:
-            total_entries += 1
-            if e.mood:
-                mood_counts[e.mood] = mood_counts.get(e.mood, 0) + 1
-            if e.tags:
-                for t in e.tags:
-                    tag_counts[t] = tag_counts.get(t, 0) + 1
-                    
-    # Sort by frequency
-    sorted_moods = sorted(mood_counts.items(), key=lambda x: x[1], reverse=True)
-    sorted_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)
-    
-    return {
-        "analyzed_days": len(dates),
-        "total_entries": total_entries,
-        "frequent_moods": [{"mood": m, "count": c} for m, c in sorted_moods[:5]],
-        "frequent_topics": [{"tag": t, "count": c} for t, c in sorted_tags[:10]]
-    }
 
 
 # ─── Resources ─────────────────────────────────────────────────────────────

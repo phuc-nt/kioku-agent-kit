@@ -82,3 +82,15 @@
 | `kioku://entities/*` | Phase 4 |
 
 ---
+
+### Phase 5: Refinement & Prompt Engineering ✅ (2026-02-23)
+
+**Completed:**
+- [x] Refactored `server.py`: Dropped `get_memories_by_date` and `get_life_patterns` to stick strictly to the Minimalist RAG Architecture.
+- [x] Restructured OpenClaw `AGENTS.md` core instructions: Defined clear use cases preventing the LLM from misusing the master key `search_memories` for entity queries.
+- [x] Forced priority of Knowledge Graph extraction (`recall_related`, `explain_connection`) for "Who is/What is/Why" relationship questions.
+- [x] Patched SQLite `FTS5` punctuation bug: Fixed regex sanitization in `search_memories` to safely strip punctuation before executing `bm25_search`.
+- [x] Reset local DB Context and resolved recurrent `openclaw gateway stop` LaunchAgent detachment issues. Evaluated Gateway reset workflows.
+
+**Notes:**
+- `LLM Bias` pushes agents toward generic summary tools like `search_memories`. Writing strict negative constraints (e.g., "CRITICAL WARNING - DO NOT USE IF...") inside prompt structures successfully enforces path traversal tools (`recall_related`).
