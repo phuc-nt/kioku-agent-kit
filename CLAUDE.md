@@ -15,6 +15,10 @@ The user might ask you to implement the phases outlined in `docs/06-restructure-
 - Python 3.12 / 3.13 is used.
 - Dependencies are managed by `uv`. Use `uv add` to add packages.
 
+## Testing Strategy
+1. **Integration Tests (`tests/`)**: Run `make test` to execute fast integration tests using mocks (FakeEmbedder, InMemoryGraphStore). Tests must maintain 100% pass rate.
+2. **End-to-End Tests**: Run `export $(grep -v '^#' .env | xargs) && python tests/e2e_mcp_client.py`. This acts as a real MCP Client via stdio, executing all 6 tools, 2 resources, and 3 prompts against real Live DBs and Anthropic API. Ensure it passes without errors when logic is changed.
+
 ## Guidelines
 - Write strict type hints (`-> dict`, `-> list`, etc.).
 - Update integration tests in `/tests/` when modifying logic. Use `make test` to ensure 100% test pass.

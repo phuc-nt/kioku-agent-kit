@@ -33,16 +33,14 @@ export $(grep -v '^#' ../.env | xargs) && python tests/e2e_mcp_client.py
 ### Các Test Case được thực thi tự động trong `e2e_mcp_client.py`:
 
 1. **Server Initialization:** Cài đặt kết nối Stdio và chạy lệnh `initialize` handshake với server.
-2. **List Tools:** Gọi lệnh lấy toàn bộ danh sách Tools có thể dùng (8 tools).
-3. **Execution: Mảng Tools (8 Tools)**
+2. **List Tools:** Gọi lệnh lấy toàn bộ danh sách Tools có thể dùng (6 tools).
+3. **Execution: Mảng Tools (6 Tools)**
    - **`save_memory`**: Lưu một câu ký ức tiếng Việt phức tạp (VD: `"Cuối tuần đi cà phê với Mai, thảo luận về dự án OpenClaw rất thú vị."`).
    - **`search_memories`**: Tìm kiếm thử một từ khóa (VD: `"Dự án OpenClaw"`) để test tính năng Tri-hybrid search (BM25 + Vector + Graph).
    - **`get_timeline`**: Lấy về mảng thời gian các sự kiện gần đây theo giới hạn số lượng.
    - **`recall_related`**: Test nền tảng Knowledge Graph (Graph Traversal) dựa trên entity `"Mai"`.
-   - **`get_memories_by_date`**: Kiểm tra việc lấy tất cả nhật ký được ghi lại theo ngày (Date).
    - **`list_memory_dates`**: Xác thực tính năng gọi mảng các ngày có dữ liệu ghi chú.
    - **`explain_connection`**: Xét tính năng giải thích đường dẫn shortest-path giữa 2 entity tự do bằng cách thử nối 2 node có sẵn (VD: Giữa "Mai" và "OpenClaw").
-   - **`get_life_patterns`**: Xác thực công cụ lấy Pattern/Thống kê tâm trạng và xu hướng của user trong 30 ngày gần nhất.
 4. **List Resources:** Yêu cầu server trả về các URI patterns (Ví dụ: `kioku://entities/*`).
 5. **Execution: Mảng Resources (2 Resources)**
    - **`kioku://entities/Mai`**: Đọc Profile Entity Markdown cho nhân vật "Mai" từ Graph DB.
