@@ -94,3 +94,18 @@
 
 **Notes:**
 - `LLM Bias` pushes agents toward generic summary tools like `search_memories`. Writing strict negative constraints (e.g., "CRITICAL WARNING - DO NOT USE IF...") inside prompt structures successfully enforces path traversal tools (`recall_related`).
+
+---
+
+### Phase 6: Dual Interface (MCP + CLI) Restructure ✅ (2026-02-23)
+
+**Completed:**
+- [x] Refactored `server.py` and extracted all business logic into `service.py` (`KiokuService`).
+- [x] Created `cli.py` to expose 6 commands using `typer`: `save`, `search`, `recall`, `explain`, `dates`, `timeline`.
+- [x] Implemented embedded ChromaDB mode fallback to remove Docker dependency for CLI users.
+- [x] Configured optional dependencies in `pyproject.toml` (`[cli]`, `[mcp]`, `[full]`).
+- [x] Dockerized the full stack (`minimal` and `full` compose setups).
+- [x] Added robust integrations tests (63/63 passing) and E2E Tests for both MCP and CLI modes.
+- [x] Verified 100% data isolation for `test_user` when running E2E.
+
+**See `docs/06-restructure-plan.md` and `docs/DEVLOG-restructure.md` for full breakdown.**
