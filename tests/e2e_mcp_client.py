@@ -47,12 +47,24 @@ async def run_e2e():
 
                 # 3. Test Tool: search_memories
                 print("\n[TEST] Tool: search_memories (Tri-hybrid search)")
-                search_res = await session.call_tool("search_memories", {"query": "Dự án OpenClaw", "limit": 2})
+                today_str = datetime.date.today().isoformat()
+                search_res = await session.call_tool("search_memories", {
+                    "query": "Dự án OpenClaw", 
+                    "limit": 5,
+                    "date_from": today_str,
+                    "date_to": today_str
+                })
                 print(f"🔹 Result: {search_res.content[0].text if search_res.content else search_res}")
 
                 # 4. Test Tool: get_timeline
                 print("\n[TEST] Tool: get_timeline")
-                timeline_res = await session.call_tool("get_timeline", {"limit": 3})
+                yesterday_str = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+                tomorrow_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+                timeline_res = await session.call_tool("get_timeline", {
+                    "limit": 5,
+                    "start_date": yesterday_str,
+                    "end_date": tomorrow_str
+                })
                 print(f"🔹 Result: {timeline_res.content[0].text if timeline_res.content else timeline_res}")
 
                 # 5. Test Tool: recall_related (Knowledge Graph)
@@ -60,7 +72,6 @@ async def run_e2e():
                 recall_res = await session.call_tool("recall_related", {"entity": "Mai", "max_hops": 2})
                 print(f"🔹 Result: {recall_res.content[0].text if recall_res.content else recall_res}")
 
-                today_str = datetime.date.today().isoformat()
 
                 # 7. Test Tool: list_memory_dates
                 print("\n[TEST] Tool: list_memory_dates")

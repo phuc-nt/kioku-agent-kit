@@ -24,6 +24,8 @@ def run_cli(*args: str) -> dict | str:
         return output
 
 
+import datetime
+
 def main():
     print("🚀 Bắt đầu CLI E2E Test...")
     errors = []
@@ -31,10 +33,10 @@ def main():
     # 1. save
     print("\n[TEST] kioku save")
     try:
-        res = run_cli("save", "CLI E2E test: đi cà phê với Lan, bàn về dự án AI rất hào hứng.", "--mood", "excited", "--tags", "test,cli,e2e")
+        res = run_cli("save", "Cuối tuần đi cà phê với Mai, thảo luận về dự án OpenClaw rất thú vị.", "--mood", "excited", "--tags", "weekend,project,openclaw")
         assert res["status"] == "saved", f"Expected saved, got {res['status']}"
         assert res["mood"] == "excited"
-        assert res["tags"] == ["test", "cli", "e2e"]
+        assert res["tags"] == ["weekend", "project", "openclaw"]
         print(f"  ✅ Saved: {res['timestamp']}")
     except Exception as e:
         errors.append(f"save: {e}")
@@ -43,9 +45,10 @@ def main():
     # 2. search
     print("\n[TEST] kioku search")
     try:
-        res = run_cli("search", "dự án AI", "--limit", "5")
+        today_str = datetime.date.today().isoformat()
+        res = run_cli("search", "Dự án OpenClaw", "--limit", "5", "--from", today_str, "--to", today_str)
         assert res["count"] >= 1, f"Expected >= 1 result, got {res['count']}"
-        assert any("AI" in r["content"] or "dự án" in r["content"] for r in res["results"])
+        assert any("OpenClaw" in r["content"] or "dự án" in r["content"] for r in res["results"])
         print(f"  ✅ Found {res['count']} results")
     except Exception as e:
         errors.append(f"search: {e}")
@@ -54,10 +57,10 @@ def main():
     # 3. recall
     print("\n[TEST] kioku recall")
     try:
-        res = run_cli("recall", "Lan")
+        res = run_cli("recall", "Mai", "--hops", "2", "--limit", "10")
         assert "entity" in res
-        assert res["entity"] == "Lan"
-        print(f"  ✅ Entity 'Lan': {res['connected_count']} connections")
+        assert res["entity"] == "Mai"
+        print(f"  ✅ Entity 'Mai': {res['connected_count']} connections")
     except Exception as e:
         errors.append(f"recall: {e}")
         print(f"  ❌ {e}")
@@ -65,10 +68,10 @@ def main():
     # 4. explain
     print("\n[TEST] kioku explain")
     try:
-        res = run_cli("explain", "Lan", "AI")
+        res = run_cli("explain", "Mai", "OpenClaw")
         assert "from" in res
-        assert res["from"] == "Lan"
-        assert res["to"] == "AI"
+        assert res["from"] == "Mai"
+        assert res["to"] == "OpenClaw"
         print(f"  ✅ Connected: {res['connected']}")
     except Exception as e:
         errors.append(f"explain: {e}")
@@ -87,7 +90,9 @@ def main():
     # 6. timeline
     print("\n[TEST] kioku timeline")
     try:
-        res = run_cli("timeline", "--limit", "5")
+        yesterday_str = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+        tomorrow_str = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+        res = run_cli("timeline", "--limit", "5", "--from", yesterday_str, "--to", tomorrow_str)
         assert res["count"] >= 1, f"Expected >= 1 entry, got {res['count']}"
         print(f"  ✅ {res['count']} timeline entries")
     except Exception as e:
