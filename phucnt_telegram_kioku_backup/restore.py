@@ -67,9 +67,10 @@ def restore():
     print("Re-indexing data using LLM and Embedders. This might take a while...")
     
     # 3. Re-index
-    from kioku.server import vector_store, graph_store, extractor, embedder
-    from kioku.pipeline.keyword_writer import KeywordIndex
+    from kioku.service import KiokuService
+    svc = KiokuService()
     
+    from kioku.pipeline.keyword_writer import KeywordIndex
     keyword_index = KeywordIndex(fts_db)
     
     for md_file in md_files:
@@ -91,7 +92,7 @@ def restore():
             )
             
             # Index to ChromaDB Vector Store
-            vector_store.add(
+            svc.vector_store.add(
                 content=e.text,
                 date=date_str,
                 timestamp=e.timestamp,
@@ -100,9 +101,9 @@ def restore():
             )
             
             # Extract Graph data via LLM and save to FalkorDB
-            extraction = extractor.extract(e.text)
+            extraction = svc.extractor.extract(e.text)
             if extraction and (extraction.entities or extraction.relationships):
-                graph_store.upsert(extraction, date_str, e.timestamp)
+                svc.graph_store.upsert(extraction, date_str, e.timestamp)
                 
     print("-" * 40)
     print("✅ Restoration and Re-indexing completed successfully!")
