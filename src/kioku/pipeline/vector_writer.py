@@ -128,6 +128,7 @@ class VectorStore:
                         "mood": meta.get("mood", ""),
                         "timestamp": meta.get("timestamp", ""),
                         "distance": results["distances"][0][i] if results["distances"] else 0.0,
+                        "content_hash": meta.get("content_hash", ""),
                     }
                 )
         return output

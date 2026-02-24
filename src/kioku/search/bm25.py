@@ -16,6 +16,7 @@ class SearchResult:
     timestamp: str
     score: float
     source: str  # "bm25", "vector", "graph"
+    content_hash: str = ""  # Phase 7: Universal Identifier for SQLite hydration
 
 
 def bm25_search(index: KeywordIndex, query: str, limit: int = 20) -> list[SearchResult]:

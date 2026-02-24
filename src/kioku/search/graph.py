@@ -38,6 +38,7 @@ def graph_search(store: GraphStore, query: str, limit: int = 20) -> list[SearchR
                         timestamp="",
                         score=edge.weight,
                         source="graph",
+                        content_hash=edge.source_hash,
                     )
                 )
 

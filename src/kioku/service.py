@@ -212,7 +212,10 @@ class KiokuService:
         date_from: str | None = None,
         date_to: str | None = None,
     ) -> dict:
-        """Search through all saved memories using tri-hybrid search."""
+        """Search through all saved memories using tri-hybrid search.
+
+        Phase 7: Hydrates results from SQLite via content_hash for consistent raw text.
+        """
         clean_query = re.sub(r"[^\w\s]", " ", query)
 
         bm25_results = bm25_search(self.keyword_index, clean_query, limit=limit * 3)
@@ -231,19 +234,40 @@ class KiokuService:
                 filtered.append(r)
             results = filtered
 
-        return {
-            "query": query,
-            "count": len(results),
-            "results": [
-                {
+        # Phase 7: Hydrate from SQLite via content_hash (deduplicated)
+        hashes = list({r.content_hash for r in results if r.content_hash})
+        hydrated = {}
+        if hashes:
+            try:
+                hydrated = self.keyword_index.get_by_hashes(hashes)
+            except Exception as e:
+                log.warning("Search hydration failed: %s", e)
+
+        output_results = []
+        for r in results:
+            # If we have hydrated data, use it for authoritative content
+            if r.content_hash and r.content_hash in hydrated:
+                entry = hydrated[r.content_hash]
+                output_results.append({
+                    "content": entry["text"],
+                    "date": entry.get("date", r.date),
+                    "mood": entry.get("mood", r.mood),
+                    "score": round(r.score, 4),
+                    "source": r.source,
+                })
+            else:
+                output_results.append({
                     "content": r.content,
                     "date": r.date,
                     "mood": r.mood,
                     "score": round(r.score, 4),
                     "source": r.source,
-                }
-                for r in results
-            ],
+                })
+
+        return {
+            "query": query,
+            "count": len(output_results),
+            "results": output_results,
         }
 
     def recall_related(self, entity: str, max_hops: int = 2, limit: int = 10) -> dict:
@@ -296,8 +320,20 @@ class KiokuService:
         }
 
     def explain_connection(self, entity_a: str, entity_b: str) -> dict:
-        """Explain how two entities are connected through the knowledge graph."""
+        """Explain how two entities are connected through the knowledge graph.
+
+        Phase 7: Hydrates source memories from SQLite via source_hash.
+        """
         result = self.graph_store.find_path(entity_a, entity_b)
+
+        # Phase 7: Collect source_hashes for hydration
+        source_hashes = list({e.source_hash for e in result.edges if e.source_hash})
+        hydrated = {}
+        if source_hashes:
+            try:
+                hydrated = self.keyword_index.get_by_hashes(source_hashes)
+            except Exception as e:
+                log.warning("Explain hydration failed: %s", e)
 
         return {
             "from": entity_a,
@@ -313,6 +349,14 @@ class KiokuService:
                     "evidence": e.evidence,
                 }
                 for e in result.edges
+            ],
+            "source_memories": [
+                {
+                    "content": entry["text"],
+                    "date": entry.get("date", ""),
+                    "mood": entry.get("mood", ""),
+                }
+                for entry in hydrated.values()
             ],
         }
 

@@ -29,6 +29,7 @@ def vector_search(store: VectorStore, query: str, limit: int = 20) -> list[Searc
                 timestamp=r["timestamp"],
                 score=similarity,
                 source="vector",
+                content_hash=r.get("content_hash", ""),
             )
         )
     return results
