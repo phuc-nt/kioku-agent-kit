@@ -225,9 +225,27 @@ class KiokuService:
         """
         clean_query = re.sub(r"[^\w\s]", " ", query)
 
-        bm25_results = bm25_search(self.keyword_index, clean_query, limit=limit * 3)
-        vec_results = vector_search(self.vector_store, query, limit=limit * 3)
-        kg_results = graph_search(self.graph_store, query, limit=limit * 3, entities=entities)
+        if entities:
+            # Entity-focused mode: all 3 legs target the same entities
+            # BM25: search using entity names as keywords
+            bm25_query = " ".join(entities)
+            bm25_results = bm25_search(self.keyword_index, bm25_query, limit=limit * 3)
+
+            # Vector: search with original query but filter to entity-relevant results
+            vec_all = vector_search(self.vector_store, query, limit=limit * 5)
+            entity_lower = [e.lower() for e in entities]
+            vec_results = [
+                r for r in vec_all
+                if any(ent in r.content.lower() for ent in entity_lower)
+            ]
+
+            # Graph: use entities as seeds directly
+            kg_results = graph_search(self.graph_store, query, limit=limit * 3, entities=entities)
+        else:
+            # Default mode: standard tri-hybrid
+            bm25_results = bm25_search(self.keyword_index, clean_query, limit=limit * 3)
+            vec_results = vector_search(self.vector_store, query, limit=limit * 3)
+            kg_results = graph_search(self.graph_store, query, limit=limit * 3)
 
         results = rrf_rerank(bm25_results, vec_results, kg_results, limit=limit)
 
