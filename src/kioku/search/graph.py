@@ -2,38 +2,75 @@
 
 from __future__ import annotations
 
+import re
+
 from kioku.pipeline.graph_writer import GraphStore
 from kioku.search.bm25 import SearchResult
+
+# Vietnamese stopwords (common words that rarely match useful entities)
+_STOPWORDS = {
+    "là", "và", "của", "có", "cho", "với", "được", "này", "đó", "các",
+    "một", "những", "trong", "để", "từ", "theo", "về", "hay", "hoặc",
+    "nhưng", "mà", "nếu", "khi", "thì", "đã", "sẽ", "đang", "rồi",
+    "nào", "gì", "thế", "sao", "tại", "vì", "bị", "do", "qua", "lại",
+    "như", "hơn", "nhất", "rất", "quá", "cũng", "vẫn", "còn", "chỉ",
+    "tôi", "anh", "em", "bạn", "mình", "chúng", "họ", "ai",
+    "the", "is", "are", "was", "were", "what", "who", "how", "why",
+}
 
 
 def graph_search(store: GraphStore, query: str, limit: int = 20) -> list[SearchResult]:
     """Search the knowledge graph by finding entities related to the query.
 
-    Strategy:
-    1. Search for entities matching the query text
-    2. For each found entity, traverse its neighborhood
-    3. Collect related edges as evidence and score by relationship weight
+    Strategy (Phase 7 — Token-based Entity Linking):
+    1. Tokenize the query into individual words
+    2. Filter out stopwords and very short tokens
+    3. Search for seed entities matching EACH token
+    4. Deduplicate and rank seeds by mention_count
+    5. Traverse top seeds and collect edges with source_hash
     """
-    # Find seed entities
-    seed_entities = store.search_entities(query, limit=5)
+    # Step 1: Tokenize — split on whitespace and punctuation
+    tokens = re.findall(r"\w+", query.lower())
 
-    if not seed_entities:
+    # Step 2: Filter stopwords and short tokens
+    meaningful_tokens = [t for t in tokens if t not in _STOPWORDS and len(t) >= 2]
+
+    if not meaningful_tokens:
         return []
 
-    seen_evidence = set()
+    # Step 3: Search entities for EACH token (deduplicate by name)
+    seed_map: dict[str, object] = {}  # name -> GraphNode
+    for token in meaningful_tokens:
+        for entity in store.search_entities(token, limit=3):
+            if entity.name not in seed_map:
+                seed_map[entity.name] = entity
+
+    if not seed_map:
+        return []
+
+    # Step 4: Rank seeds by mention_count (most mentioned = most important)
+    ranked_seeds = sorted(
+        seed_map.values(),
+        key=lambda e: getattr(e, "mention_count", 0),
+        reverse=True,
+    )[:5]  # Top 5 seeds to avoid explosion
+
+    # Step 5: Traverse from each seed and collect edges
+    seen_hashes = set()
     results = []
 
-    for entity in seed_entities:
-        # Traverse from each seed entity
+    for entity in ranked_seeds:
         graph_result = store.traverse(entity.name, max_hops=2, limit=limit)
 
         for edge in graph_result.edges:
-            if edge.evidence and edge.evidence not in seen_evidence:
-                seen_evidence.add(edge.evidence)
+            # Deduplicate by source_hash to avoid duplicate raw texts
+            dedup_key = edge.source_hash or edge.evidence
+            if dedup_key and dedup_key not in seen_hashes:
+                seen_hashes.add(dedup_key)
                 results.append(
                     SearchResult(
-                        content=edge.evidence,
-                        date="",  # Graph edges don't always have dates
+                        content=edge.evidence or "",
+                        date="",
                         mood="",
                         timestamp="",
                         score=edge.weight,
