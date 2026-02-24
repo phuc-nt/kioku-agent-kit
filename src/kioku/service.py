@@ -299,7 +299,7 @@ class KiokuService:
         if entities:
             try:
                 graph_nodes: dict[str, dict] = {}
-                graph_rels: list[dict] = []
+                all_edges: list = []
 
                 for ent in entities:
                     traversal = self.graph_store.traverse(ent, max_hops=2, limit=20)
@@ -310,17 +310,45 @@ class KiokuService:
                                 "type": n.type,
                                 "mention_count": n.mention_count,
                             }
-                    for e in traversal.edges:
-                        graph_rels.append({
-                            "source": e.source,
-                            "target": e.target,
-                            "type": e.rel_type,
-                            "weight": round(e.weight, 2),
-                        })
+                    all_edges.extend(traversal.edges)
+
+                # Budget: total heavyweight entries (text + graph evidence) ≤ 20
+                evidence_budget = max(0, 20 - len(output_results))
+
+                # Dedup edges: skip those already in text results
+                text_hashes = {r.content_hash for r in results if r.content_hash}
+                unique_edges = []
+                seen_edge_hashes: set[str] = set()
+                for e in sorted(all_edges, key=lambda x: x.weight, reverse=True):
+                    h = e.source_hash
+                    if h and h not in text_hashes and h not in seen_edge_hashes:
+                        seen_edge_hashes.add(h)
+                        unique_edges.append(e)
+
+                # Hydrate top-N unique edges from SQLite
+                top_edges = unique_edges[:evidence_budget]
+                edge_hashes = [e.source_hash for e in top_edges if e.source_hash]
+                edge_hydrated = {}
+                if edge_hashes:
+                    try:
+                        edge_hydrated = self.keyword_index.get_by_hashes(edge_hashes)
+                    except Exception:
+                        pass
+
+                graph_evidence = []
+                for e in top_edges:
+                    entry = edge_hydrated.get(e.source_hash, {}) if e.source_hash else {}
+                    graph_evidence.append({
+                        "source": e.source,
+                        "target": e.target,
+                        "type": e.rel_type,
+                        "weight": round(e.weight, 2),
+                        "evidence": entry.get("text", e.evidence or ""),
+                    })
 
                 response["graph_context"] = {
                     "nodes": list(graph_nodes.values()),
-                    "relationships": graph_rels,
+                    "evidence": graph_evidence,
                 }
 
                 # Find paths between entity pairs (when 2+ entities)
