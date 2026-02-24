@@ -289,11 +289,59 @@ class KiokuService:
                     "source": r.source,
                 })
 
-        return {
+        response: dict = {
             "query": query,
             "count": len(output_results),
             "results": output_results,
         }
+
+        # Enrich with graph context when entities are provided
+        if entities:
+            try:
+                graph_nodes: dict[str, dict] = {}
+                graph_rels: list[dict] = []
+
+                for ent in entities:
+                    traversal = self.graph_store.traverse(ent, max_hops=2, limit=20)
+                    for n in traversal.nodes:
+                        if n.name not in graph_nodes:
+                            graph_nodes[n.name] = {
+                                "name": n.name,
+                                "type": n.type,
+                                "mention_count": n.mention_count,
+                            }
+                    for e in traversal.edges:
+                        graph_rels.append({
+                            "source": e.source,
+                            "target": e.target,
+                            "type": e.rel_type,
+                            "weight": round(e.weight, 2),
+                        })
+
+                response["graph_context"] = {
+                    "nodes": list(graph_nodes.values()),
+                    "relationships": graph_rels,
+                }
+
+                # Find paths between entity pairs (when 2+ entities)
+                if len(entities) >= 2:
+                    connections = []
+                    for i in range(len(entities)):
+                        for j in range(i + 1, len(entities)):
+                            path_result = self.graph_store.find_path(entities[i], entities[j])
+                            if path_result.paths:
+                                connections.append({
+                                    "from": entities[i],
+                                    "to": entities[j],
+                                    "paths": path_result.paths,
+                                })
+                    if connections:
+                        response["connections"] = connections
+
+            except Exception as e:
+                log.warning("Graph context enrichment failed: %s", e)
+
+        return response
 
     def recall_related(self, entity: str, max_hops: int = 2, limit: int = 10) -> dict:
         """Recall everything related to a person, place, topic, or event.
