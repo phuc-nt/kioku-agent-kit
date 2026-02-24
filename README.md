@@ -24,7 +24,7 @@ Kioku → traverses the graph, finds connections, returns evidence
 pip install kioku-mcp[cli,vector]
 kioku save "First memory — testing Kioku" --mood happy --tags test
 kioku search "test"
-kioku dates
+kioku timeline --from 2026-02-24 --to 2026-02-24
 ```
 
 ### Option 2: Full stack with Docker
@@ -87,18 +87,18 @@ python -m kioku.server
 
 ## CLI Commands
 
-| Command | Example |
-|---|---|
-| `kioku save` | `kioku save "Đi ăn phở với Minh" --mood happy --tags food,friend` |
-| `kioku search` | `kioku search "dự án AI" --limit 5` |
-| `kioku recall` | `kioku recall "Minh" --hops 2` |
-| `kioku explain` | `kioku explain "Minh" "AI"` |
-| `kioku dates` | `kioku dates` |
-| `kioku timeline` | `kioku timeline --from 2026-02-01 --to 2026-02-28` |
+| Command | Description | Example |
+|---|---|---|
+| `kioku save` | Save a memory | `kioku save "Đi ăn phở với Minh" --mood happy --tags food,friend` |
+| `kioku search` | Unified search (auto-extracts entities) | `kioku search "Minh dự án AI" --limit 10` |
+| `kioku entities` | Browse entity vocabulary | `kioku entities --limit 50` |
+| `kioku timeline` | Chronological entries | `kioku timeline --from 2026-02-01 --to 2026-02-28` |
+
+`search` automatically extracts entities from the query using LLM + canonical entity vocabulary. Pass `--entities "X,Y"` to override.
 
 ## MCP Interface
 
-**6 Tools:** `save_memory`, `search_memories`, `recall_related`, `explain_connection`, `list_memory_dates`, `get_timeline`
+**4 Tools:** `save_memory`, `search_memories` (with auto-extract), `list_entities`, `get_timeline`
 
 **2 Resources:** `kioku://memories/{date}`, `kioku://entities/{entity}`
 
@@ -137,18 +137,19 @@ git clone https://github.com/phuc-nt/kioku_mcp.git && cd kioku_mcp
 pip install -e ".[full,dev]"
 docker compose up -d          # databases
 
-make test                     # integration tests (16 tests, mocked DBs)
+uv run pytest tests/ -v         # 67 tests (mocked DBs)
 python tests/e2e_mcp_client.py  # MCP E2E (real DBs)
 python tests/e2e_cli.py         # CLI E2E (real DBs)
-make lint                     # ruff check + format
+make lint                       # ruff check + format
 ```
 
 ## Docs
 
 - [Requirements](docs/01-requirements.md)
 - [System Design](docs/02-system-design.md)
+- [Search Architecture](docs/08-search-architecture.md) ⭐
 - [Restructure Plan](docs/06-restructure-plan.md)
-- [Dev Log](docs/DEVLOG.md) | [Restructure Log](docs/DEVLOG-restructure.md)
+- [Dev Log](docs/DEVLOG.md) | [Phase 8](docs/DEVLOG-phase8.md)
 
 ## License
 
