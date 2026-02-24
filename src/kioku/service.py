@@ -225,6 +225,21 @@ class KiokuService:
         """
         clean_query = re.sub(r"[^\w\s]", " ", query)
 
+        # Auto-extract entities from query if not provided
+        if not entities:
+            try:
+                canonical = self.graph_store.get_canonical_entities(limit=50)
+                context_names = [e["name"] for e in canonical]
+                extraction = self.extractor.extract(
+                    query, context_entities=context_names
+                )
+                auto_entities = [e.name for e in extraction.entities]
+                if auto_entities:
+                    entities = auto_entities
+                    log.info("Auto-extracted entities: %s", entities)
+            except Exception as e:
+                log.warning("Entity auto-extraction failed: %s", e)
+
         if entities:
             # Entity-focused mode: all 3 legs target the same entities
             # BM25: search using entity names as keywords
@@ -291,6 +306,7 @@ class KiokuService:
 
         response: dict = {
             "query": query,
+            "entities_used": entities or [],
             "count": len(output_results),
             "results": output_results,
         }
