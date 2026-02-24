@@ -164,10 +164,11 @@ class FalkorGraphStore:
     def traverse(self, entity_name: str, max_hops: int = 2, limit: int = 20) -> GraphSearchResult:
         """Multi-hop traversal from a seed entity."""
         result = self.graph.query(
-            """MATCH (start:Entity {name: $name})
+            """MATCH (start:Entity)
+               WHERE toLower(start.name) = toLower($name)
                MATCH path = (start)-[r:RELATES*1.."""
             + str(max_hops)
-            + """]->(connected:Entity)
+            + """]-(connected:Entity)
                RETURN start.name, start.type,
                       connected.name, connected.type,
                       [rel IN relationships(path) | rel.type] AS rel_types,
@@ -204,7 +205,8 @@ class FalkorGraphStore:
         """Find shortest path between two entities."""
         try:
             result = self.graph.query(
-                """MATCH (a:Entity {name: $source}), (b:Entity {name: $target})
+                """MATCH (a:Entity), (b:Entity)
+                   WHERE toLower(a.name) = toLower($source) AND toLower(b.name) = toLower($target)
                    WITH shortestPath((a)-[*..5]->(b)) AS path
                    WHERE path IS NOT NULL
                    RETURN [n IN nodes(path) | n.name] AS names,
@@ -217,10 +219,11 @@ class FalkorGraphStore:
             # Fallback: try undirected
             try:
                 result = self.graph.query(
-                    """MATCH (a:Entity {name: $source})-[r:RELATES*1..5]-(b:Entity {name: $target})
-                       RETURN [n IN nodes(path) | n.name] AS names
-                       LIMIT 1""",
-                    {"source": source, "target": target},
+                    """MATCH (a:Entity)-[r:RELATES*1..5]-(b:Entity)
+                   WHERE toLower(a.name) = toLower($source) AND toLower(b.name) = toLower($target)
+                   RETURN [n IN nodes(path) | n.name] AS names
+                   LIMIT 1""",
+                {"source": source, "target": target},
                 )
             except Exception:
                 return GraphSearchResult()
