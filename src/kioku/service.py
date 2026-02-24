@@ -247,8 +247,20 @@ class KiokuService:
         }
 
     def recall_related(self, entity: str, max_hops: int = 2, limit: int = 10) -> dict:
-        """Recall everything related to a person, place, topic, or event."""
+        """Recall everything related to a person, place, topic, or event.
+
+        Uses Graph traversal + SQLite hydration (Phase 7 Universal Identifier).
+        """
         result = self.graph_store.traverse(entity, max_hops=max_hops, limit=limit)
+
+        # Phase 7: Collect source_hashes from edges for O(1) hydration
+        source_hashes = list({e.source_hash for e in result.edges if e.source_hash})
+        hydrated = {}
+        if source_hashes:
+            try:
+                hydrated = self.keyword_index.get_by_hashes(source_hashes)
+            except Exception as e:
+                log.warning("Hydration from SQLite failed: %s", e)
 
         return {
             "entity": entity,
@@ -272,6 +284,14 @@ class KiokuService:
                     "evidence": e.evidence,
                 }
                 for e in result.edges
+            ],
+            "source_memories": [
+                {
+                    "content": entry["text"],
+                    "date": entry.get("date", ""),
+                    "mood": entry.get("mood", ""),
+                }
+                for entry in hydrated.values()
             ],
         }
 

@@ -173,7 +173,8 @@ class FalkorGraphStore:
                       connected.name, connected.type,
                       [rel IN relationships(path) | rel.type] AS rel_types,
                       [rel IN relationships(path) | rel.weight] AS weights,
-                      [rel IN relationships(path) | rel.evidence] AS evidences
+                      [rel IN relationships(path) | rel.evidence] AS evidences,
+                      [rel IN relationships(path) | rel.source_hash] AS source_hashes
                LIMIT $limit""",
             {"name": entity_name, "limit": limit},
         )
@@ -183,7 +184,7 @@ class FalkorGraphStore:
         for row in result.result_set:
             src_name, src_type = row[0], row[1]
             tgt_name, tgt_type = row[2], row[3]
-            rel_types, weights, evidences = row[4], row[5], row[6]
+            rel_types, weights, evidences, source_hashes = row[4], row[5], row[6], row[7]
 
             nodes_map[src_name] = GraphNode(name=src_name, type=src_type)
             nodes_map[tgt_name] = GraphNode(name=tgt_name, type=tgt_type)
@@ -196,6 +197,7 @@ class FalkorGraphStore:
                         rel_type=rel_types[-1] if rel_types else "",
                         weight=weights[-1] if weights else 0.5,
                         evidence=evidences[-1] if evidences else "",
+                        source_hash=source_hashes[-1] if source_hashes else "",
                     )
                 )
 
