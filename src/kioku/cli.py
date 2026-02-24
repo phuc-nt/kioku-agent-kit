@@ -94,6 +94,15 @@ def explain(
 
 
 @app.command()
+def entities(
+    limit: int = typer.Option(50, "--limit", "-l", help="Max entities to return."),
+) -> None:
+    """List top canonical entities from the knowledge graph."""
+    result = _get_svc().list_entities(limit=limit)
+    _output(result)
+
+
+@app.command()
 def dates() -> None:
     """List all dates that have memory entries."""
     result = _get_svc().list_memory_dates()

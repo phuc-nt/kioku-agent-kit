@@ -139,7 +139,8 @@ class KiokuService:
         event_time: str | None = None
         try:
             # Get canonical entities for disambiguation
-            context_entities = self.graph_store.get_canonical_entities(limit=50)
+            canonical = self.graph_store.get_canonical_entities(limit=50)
+            context_entities = [e["name"] for e in canonical]
             extraction = self.extractor.extract(
                 text,
                 context_entities=context_entities,
@@ -364,6 +365,19 @@ class KiokuService:
                 }
                 for entry in hydrated.values()
             ],
+        }
+
+    def list_entities(self, limit: int = 50) -> dict:
+        """List top canonical entities from the knowledge graph.
+
+        Returns entities with their names, types, and mention counts.
+        Agent should call this BEFORE search to know which entities exist,
+        then extract matching entities from user's question for the entities parameter.
+        """
+        canonical = self.graph_store.get_canonical_entities(limit=limit)
+        return {
+            "count": len(canonical),
+            "entities": canonical,
         }
 
     def list_memory_dates(self) -> dict:

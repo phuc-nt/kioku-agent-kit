@@ -96,6 +96,22 @@ def explain_connection(entity_a: str, entity_b: str) -> dict:
 
 
 @mcp.tool()
+def list_entities(limit: int = 50) -> dict:
+    """List top canonical entities from the knowledge graph with their types.
+
+    IMPORTANT: Call this BEFORE search_memories when the user asks about specific
+    people, places, events, or concepts. Use the returned entity names to populate
+    the `entities` parameter of search_memories for precise KG results.
+
+    Entity types include: person, family, event, concept, place, organization, etc.
+
+    Args:
+        limit: Maximum entities to return (default 50, ordered by mention count).
+    """
+    return _svc.list_entities(limit=limit)
+
+
+@mcp.tool()
 def list_memory_dates() -> dict:
     """List all dates that have memory entries from SQLite Database."""
     return _svc.list_memory_dates()

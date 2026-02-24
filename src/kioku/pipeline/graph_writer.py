@@ -129,16 +129,22 @@ class FalkorGraphStore:
                 },
             )
 
-    def get_canonical_entities(self, limit: int = 50) -> list[str]:
-        """Get top canonical entity names for context-aware extraction."""
+    def get_canonical_entities(self, limit: int = 50) -> list[dict]:
+        """Get top canonical entity names with types for context-aware operations.
+
+        Returns list of {"name": ..., "type": ..., "mentions": ...} ordered by mention_count desc.
+        """
         result = self.graph.query(
             """MATCH (e:Entity)
-               RETURN e.name
+               RETURN e.name, e.type, e.mention_count
                ORDER BY e.mention_count DESC
                LIMIT $limit""",
             {"limit": limit},
         )
-        return [row[0] for row in result.result_set]
+        return [
+            {"name": row[0], "type": row[1] or "", "mentions": row[2] or 0}
+            for row in result.result_set
+        ]
 
     def search_entities(self, query: str, limit: int = 10) -> list[GraphNode]:
         """Search for entities by name (case-insensitive contains)."""
