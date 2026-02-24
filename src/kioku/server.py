@@ -46,6 +46,7 @@ def search_memories(
     limit: int = 10,
     date_from: str | None = None,
     date_to: str | None = None,
+    entities: list[str] | None = None,
 ) -> dict:
     """Search through all saved memories using tri-hybrid search (BM25 + Vector + KG).
 
@@ -57,8 +58,12 @@ def search_memories(
         limit: Maximum number of results to return (default 10).
         date_from: Optional start date filter (YYYY-MM-DD).
         date_to: Optional end date filter (YYYY-MM-DD).
+        entities: Optional list of entity names to focus KG search on.
+                  If the user's question mentions specific people, places, or topics,
+                  extract and pass them here for more precise KG results.
+                  Example: ["Mẹ", "Hùng"] for "mẹ tôi và sếp Hùng ai khắt khe hơn?"
     """
-    return _svc.search_memories(query, limit=limit, date_from=date_from, date_to=date_to)
+    return _svc.search_memories(query, limit=limit, date_from=date_from, date_to=date_to, entities=entities)
 
 
 @mcp.tool()

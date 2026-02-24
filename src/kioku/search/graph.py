@@ -19,43 +19,50 @@ _STOPWORDS = {
 }
 
 
-def graph_search(store: GraphStore, query: str, limit: int = 20) -> list[SearchResult]:
+def graph_search(
+    store: GraphStore,
+    query: str,
+    limit: int = 20,
+    entities: list[str] | None = None,
+) -> list[SearchResult]:
     """Search the knowledge graph by finding entities related to the query.
 
-    Strategy (Phase 7 — Token-based Entity Linking):
-    1. Tokenize the query into individual words
-    2. Filter out stopwords and very short tokens
-    3. Search for seed entities matching EACH token
-    4. Deduplicate and rank seeds by mention_count
-    5. Traverse top seeds and collect edges with source_hash
+    Strategy (Phase 7 — Entity-aware search):
+    1. If `entities` provided (Agent-extracted): use them as seeds directly
+    2. Otherwise: tokenize query, filter stopwords, search per-token (fallback)
+    3. Deduplicate and rank seeds by mention_count
+    4. Traverse top seeds and collect edges with source_hash
     """
-    # Step 1: Tokenize — split on whitespace and punctuation
-    tokens = re.findall(r"\w+", query.lower())
+    seed_map: dict[str, object] = {}
 
-    # Step 2: Filter stopwords and short tokens
-    meaningful_tokens = [t for t in tokens if t not in _STOPWORDS and len(t) >= 2]
-
-    if not meaningful_tokens:
-        return []
-
-    # Step 3: Search entities for EACH token (deduplicate by name)
-    seed_map: dict[str, object] = {}  # name -> GraphNode
-    for token in meaningful_tokens:
-        for entity in store.search_entities(token, limit=3):
-            if entity.name not in seed_map:
-                seed_map[entity.name] = entity
+    if entities:
+        # Priority path: Agent has pre-extracted entity names
+        for entity_name in entities:
+            for entity in store.search_entities(entity_name, limit=3):
+                if entity.name not in seed_map:
+                    seed_map[entity.name] = entity
+    else:
+        # Fallback: tokenize query and search per-token
+        tokens = re.findall(r"\w+", query.lower())
+        meaningful_tokens = [t for t in tokens if t not in _STOPWORDS and len(t) >= 2]
+        if not meaningful_tokens:
+            return []
+        for token in meaningful_tokens:
+            for entity in store.search_entities(token, limit=3):
+                if entity.name not in seed_map:
+                    seed_map[entity.name] = entity
 
     if not seed_map:
         return []
 
-    # Step 4: Rank seeds by mention_count (most mentioned = most important)
+    # Rank seeds by mention_count (most mentioned = most important)
     ranked_seeds = sorted(
         seed_map.values(),
         key=lambda e: getattr(e, "mention_count", 0),
         reverse=True,
-    )[:5]  # Top 5 seeds to avoid explosion
+    )[:5]
 
-    # Step 5: Traverse from each seed and collect edges
+    # Traverse from each seed and collect edges
     seen_hashes = set()
     results = []
 
@@ -63,7 +70,6 @@ def graph_search(store: GraphStore, query: str, limit: int = 20) -> list[SearchR
         graph_result = store.traverse(entity.name, max_hops=2, limit=limit)
 
         for edge in graph_result.edges:
-            # Deduplicate by source_hash to avoid duplicate raw texts
             dedup_key = edge.source_hash or edge.evidence
             if dedup_key and dedup_key not in seen_hashes:
                 seen_hashes.add(dedup_key)
@@ -79,6 +85,5 @@ def graph_search(store: GraphStore, query: str, limit: int = 20) -> list[SearchR
                     )
                 )
 
-    # Sort by weight (highest first)
     results.sort(key=lambda r: r.score, reverse=True)
     return results[:limit]

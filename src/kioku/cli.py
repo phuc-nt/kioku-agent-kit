@@ -62,9 +62,11 @@ def search(
     limit: int = typer.Option(10, "--limit", "-l", help="Max results to return."),
     date_from: Optional[str] = typer.Option(None, "--from", help="Start date filter (YYYY-MM-DD)."),
     date_to: Optional[str] = typer.Option(None, "--to", help="End date filter (YYYY-MM-DD)."),
+    entities: Optional[str] = typer.Option(None, "--entities", "-e", help="Comma-separated entity names for KG search (e.g. 'Mẹ,Hùng')."),
 ) -> None:
     """Search through all saved memories using tri-hybrid search (BM25 + Vector + KG)."""
-    result = _get_svc().search_memories(query, limit=limit, date_from=date_from, date_to=date_to)
+    entity_list = [e.strip() for e in entities.split(",")] if entities else None
+    result = _get_svc().search_memories(query, limit=limit, date_from=date_from, date_to=date_to, entities=entity_list)
     _output(result)
 
 

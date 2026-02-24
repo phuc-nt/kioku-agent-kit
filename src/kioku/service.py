@@ -211,16 +211,22 @@ class KiokuService:
         limit: int = 10,
         date_from: str | None = None,
         date_to: str | None = None,
+        entities: list[str] | None = None,
     ) -> dict:
         """Search through all saved memories using tri-hybrid search.
 
         Phase 7: Hydrates results from SQLite via content_hash for consistent raw text.
+
+        Args:
+            entities: Optional list of entity names pre-extracted by Agent.
+                      If provided, graph_search uses them as seeds directly
+                      instead of tokenizing the query. Improves KG precision.
         """
         clean_query = re.sub(r"[^\w\s]", " ", query)
 
         bm25_results = bm25_search(self.keyword_index, clean_query, limit=limit * 3)
         vec_results = vector_search(self.vector_store, query, limit=limit * 3)
-        kg_results = graph_search(self.graph_store, query, limit=limit * 3)
+        kg_results = graph_search(self.graph_store, query, limit=limit * 3, entities=entities)
 
         results = rrf_rerank(bm25_results, vec_results, kg_results, limit=limit)
 
