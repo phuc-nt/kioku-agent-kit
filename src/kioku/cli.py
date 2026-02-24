@@ -69,43 +69,12 @@ def search(
     result = _get_svc().search_memories(query, limit=limit, date_from=date_from, date_to=date_to, entities=entity_list)
     _output(result)
 
-
-@app.command()
-def recall(
-    entity: str = typer.Argument(
-        ..., help="Entity name to search for (e.g., person, place, topic)."
-    ),
-    max_hops: int = typer.Option(2, "--hops", "-h", help="Relationship hops to traverse."),
-    limit: int = typer.Option(10, "--limit", "-l", help="Max connected entities to return."),
-) -> None:
-    """Recall everything related to a person, place, topic, or event via knowledge graph."""
-    result = _get_svc().recall_related(entity, max_hops=max_hops, limit=limit)
-    _output(result)
-
-
-@app.command()
-def explain(
-    entity_a: str = typer.Argument(..., help="First entity name."),
-    entity_b: str = typer.Argument(..., help="Second entity name."),
-) -> None:
-    """Explain how two entities are connected through the knowledge graph."""
-    result = _get_svc().explain_connection(entity_a, entity_b)
-    _output(result)
-
-
 @app.command()
 def entities(
     limit: int = typer.Option(50, "--limit", "-l", help="Max entities to return."),
 ) -> None:
     """List top canonical entities from the knowledge graph."""
     result = _get_svc().list_entities(limit=limit)
-    _output(result)
-
-
-@app.command()
-def dates() -> None:
-    """List all dates that have memory entries."""
-    result = _get_svc().list_memory_dates()
     _output(result)
 
 

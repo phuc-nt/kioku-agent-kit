@@ -67,35 +67,6 @@ def search_memories(
 
 
 @mcp.tool()
-def recall_related(entity: str, max_hops: int = 2, limit: int = 10) -> dict:
-    """Recall everything related to a person, place, topic, or event.
-
-    Traverses the knowledge graph to find connected entities and the evidence
-    (memory text) that links them.
-
-    Args:
-        entity: The entity name to search for (e.g., "Hùng", "dự án X", "gym").
-        max_hops: How many relationship hops to traverse (default 2).
-        limit: Maximum number of connected entities to return.
-    """
-    return _svc.recall_related(entity, max_hops=max_hops, limit=limit)
-
-
-@mcp.tool()
-def explain_connection(entity_a: str, entity_b: str) -> dict:
-    """Explain how two entities are connected through the knowledge graph.
-
-    Finds the shortest path between two people, places, events, or topics
-    and shows the evidence that links them.
-
-    Args:
-        entity_a: First entity name.
-        entity_b: Second entity name.
-    """
-    return _svc.explain_connection(entity_a, entity_b)
-
-
-@mcp.tool()
 def list_entities(limit: int = 50) -> dict:
     """List top canonical entities from the knowledge graph with their types.
 
@@ -109,12 +80,6 @@ def list_entities(limit: int = 50) -> dict:
         limit: Maximum entities to return (default 50, ordered by mention count).
     """
     return _svc.list_entities(limit=limit)
-
-
-@mcp.tool()
-def list_memory_dates() -> dict:
-    """List all dates that have memory entries from SQLite Database."""
-    return _svc.list_memory_dates()
 
 
 @mcp.tool()

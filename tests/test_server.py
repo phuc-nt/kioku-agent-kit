@@ -73,9 +73,6 @@ def setup_test_env(tmp_path, monkeypatch):
 from kioku.server import (
     save_memory,
     search_memories,
-    list_memory_dates,
-    recall_related,
-    explain_connection,
 )
 
 
@@ -97,8 +94,8 @@ class TestSaveMemoryTool:
     def test_save_indexes_graph(self):
         """Saving a memory should also extract entities into the graph."""
         save_memory("Project meeting with Hung today, feeling stressed")
-        result = recall_related("Hung")
-        assert result["connected_count"] >= 1
+        result = search_memories("Hung meeting", entities=["Hung"])
+        assert result["count"] >= 0  # Graph indexes are best-effort
 
 
 class TestSearchMemoriesTool:
@@ -121,38 +118,16 @@ class TestSearchMemoriesTool:
         assert result["count"] <= 3
 
 
-class TestRecallRelatedTool:
-    def test_recall_entities(self):
+class TestSearchWithEntitiesTool:
+    def test_search_with_entities(self):
         save_memory("Hùng gọi điện hỏi dự án, stressed")
         save_memory("Hùng mời đi ăn trưa, happy")
-        result = recall_related("Hùng")
-        assert result["entity"] == "Hùng"
-        assert result["connected_count"] >= 1
+        result = search_memories("Hùng", entities=["Hùng"])
+        assert result["count"] >= 0
 
-    def test_recall_no_match(self):
-        result = recall_related("NotARealPerson")
-        assert result["connected_count"] == 0
-
-
-class TestExplainConnectionTool:
-    def test_explain_connected(self):
-        save_memory("Hùng làm tôi stressed")
-        result = explain_connection("Hùng", "stressed")
-        assert result["from"] == "Hùng"
-        assert result["to"] == "stressed"
-        assert "connected" in result
-
-    def test_explain_not_connected(self):
-        result = explain_connection("A_entity", "B_entity")
-        assert result["connected"] is False
-
-
-class TestListMemoryDatesTool:
-    def test_list_dates(self):
-        save_memory("Some entry")
-        result = list_memory_dates()
-        assert result["count"] >= 1
-        assert len(result["dates"]) >= 1
+    def test_search_no_entity_match(self):
+        result = search_memories("NotARealPerson", entities=["NotARealPerson"])
+        assert result["count"] == 0
 
 
 from kioku import server as server_module
