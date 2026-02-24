@@ -145,10 +145,11 @@ make lint                       # ruff check + format
 
 ## Docs
 
+- [System Architecture](docs/architecture/system.md) ⭐
+- [Search Architecture](docs/architecture/search.md) ⭐
+- [Save Architecture](docs/architecture/save.md) ⭐
 - [Requirements](docs/01-requirements.md)
 - [System Design](docs/02-system-design.md)
-- [Search Architecture](docs/08-search-architecture.md) ⭐
-- [Restructure Plan](docs/06-restructure-plan.md)
 - [Dev Log](docs/DEVLOG.md) | [Phase 8](docs/DEVLOG-phase8.md)
 
 ## License
