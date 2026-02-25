@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 from typing import Optional
 
 try:
     import typer
 except ImportError:
     raise ImportError(
-        "Typer is required to run the CLI. Install it with: pip install kioku-mcp[cli]"
+        "Typer is required to run the CLI. Install it with: pip install kioku-agent-kit[cli]"
     )
 
 app = typer.Typer(
@@ -95,6 +100,171 @@ def timeline(
         start_date=start_date, end_date=end_date, limit=limit, sort_by=sort_by
     )
     _output(result)
+
+
+@app.command()
+def setup(
+    user_id: Optional[str] = typer.Option(
+        None, "--user-id", "-u",
+        help="Your Kioku user ID (e.g. 'personal', 'work'). Defaults to $KIOKU_USER_ID or 'personal'.",
+    ),
+    output_dir: Path = typer.Option(
+        Path.cwd(), "--dir", "-d",
+        help="Directory to generate docker-compose.yml into (default: current dir).",
+    ),
+    skill: bool = typer.Option(False, "--skill", help="Print SKILL.md to stdout (for Claude Code / Cursor)."),
+    claude: bool = typer.Option(False, "--claude", help="Print CLAUDE.agent.md to stdout (copy to project root)."),
+    no_docker: bool = typer.Option(False, "--no-docker", help="Skip Docker database startup."),
+    no_model: bool = typer.Option(False, "--no-model", help="Skip Ollama model pull."),
+) -> None:
+    """One-command setup: generate configs, start databases, pull embedding model.
+
+    After running setup, use Kioku without cloning the repository:
+
+    \b
+    kioku setup --user-id personal
+    kioku save "First memory" --mood happy
+    kioku search "memory"
+
+    To get template files for Claude Code / Cursor:
+
+    \b
+    kioku setup --claude > CLAUDE.md    # add to your project root
+    kioku setup --skill  > SKILL.md     # add to your skills directory
+    """
+    import importlib.resources as pkg_resources
+
+    RESOURCES = Path(__file__).parent / "resources"
+
+    # ── Template-only output modes ──
+    if skill:
+        skill_file = RESOURCES / "SKILL.md"
+        typer.echo(skill_file.read_text(encoding="utf-8"))
+        return
+
+    if claude:
+        claude_file = RESOURCES / "CLAUDE.agent.md"
+        typer.echo(claude_file.read_text(encoding="utf-8"))
+        return
+
+    # ── Full setup ──
+    resolved_user_id = user_id or os.environ.get("KIOKU_USER_ID", "personal")
+
+    typer.echo("")
+    typer.echo("╔══════════════════════════════════════╗")
+    typer.echo("║     Kioku Agent Kit — Setup          ║")
+    typer.echo("╚══════════════════════════════════════╝")
+    typer.echo("")
+    typer.echo(f"User ID   : {resolved_user_id}")
+    typer.echo(f"Output dir: {output_dir}")
+    typer.echo("")
+
+    # Step 1: Generate docker-compose.yml
+    typer.echo("── Step 1: Generating docker-compose.yml ──")
+    dc_src = RESOURCES / "docker-compose.yml"
+    dc_dst = output_dir / "docker-compose.yml"
+    if dc_dst.exists():
+        typer.echo(f"  ⚠️  {dc_dst} already exists — skipping (remove to regenerate)")
+    else:
+        shutil.copy(dc_src, dc_dst)
+        typer.echo(f"  ✅ Written: {dc_dst}")
+
+    # Step 2: Start databases
+    if not no_docker:
+        typer.echo("")
+        typer.echo("── Step 2: Starting databases (Docker) ──")
+        if shutil.which("docker") is None:
+            typer.echo("  ⚠️  Docker not found — skipping. Install: https://docker.com")
+        else:
+            try:
+                result = subprocess.run(
+                    ["docker", "compose", "-f", str(dc_dst), "up", "-d", "chromadb", "falkordb"],
+                    capture_output=True, text=True, timeout=60,
+                )
+                if result.returncode == 0:
+                    typer.echo("  ✅ ChromaDB + FalkorDB started")
+                else:
+                    typer.echo(f"  ⚠️  Docker error: {result.stderr.strip()[:200]}")
+            except subprocess.TimeoutExpired:
+                typer.echo("  ⚠️  Docker timed out — databases may be starting in background")
+            except Exception as e:
+                typer.echo(f"  ⚠️  Docker failed: {e}")
+    else:
+        typer.echo("  ⏭️  Skipped Docker startup (--no-docker)")
+
+    # Step 3: Pull embedding model
+    if not no_model:
+        typer.echo("")
+        typer.echo("── Step 3: Embedding model (Ollama) ──")
+        ollama_model = os.environ.get("KIOKU_OLLAMA_MODEL", "bge-m3")
+        if shutil.which("ollama") is None:
+            typer.echo("  ⚠️  Ollama not found — skipping. Install: https://ollama.com")
+            typer.echo("      Kioku will use fake embeddings (BM25 still works).")
+        else:
+            check = subprocess.run(["ollama", "list"], capture_output=True, text=True)
+            if ollama_model in check.stdout:
+                typer.echo(f"  ✅ Model {ollama_model} already available")
+            else:
+                typer.echo(f"  Pulling {ollama_model} (may take a few minutes)...")
+                result = subprocess.run(["ollama", "pull", ollama_model], timeout=600)
+                if result.returncode == 0:
+                    typer.echo(f"  ✅ Model {ollama_model} ready")
+                else:
+                    typer.echo(f"  ⚠️  Pull failed — run: ollama pull {ollama_model}")
+    else:
+        typer.echo("  ⏭️  Skipped model pull (--no-model)")
+
+    # Step 4: Create config.env
+    typer.echo("")
+    typer.echo("── Step 4: Configuration ──")
+    config_dir = Path.home() / ".kioku"
+    config_dir.mkdir(exist_ok=True)
+    config_file = config_dir / "config.env"
+
+    if config_file.exists():
+        typer.echo(f"  ✅ Config already exists: {config_file}")
+    else:
+        from datetime import date
+        config_file.write_text(
+            f"""# Kioku Agent Kit — Configuration
+# Generated on {date.today()}
+
+KIOKU_USER_ID={resolved_user_id}
+
+# Anthropic API key (for entity extraction in search)
+# Get it at: https://console.anthropic.com
+KIOKU_ANTHROPIC_API_KEY=
+
+# Database endpoints (match docker-compose defaults)
+KIOKU_CHROMA_HOST=localhost
+KIOKU_CHROMA_PORT=8000
+KIOKU_FALKORDB_HOST=localhost
+KIOKU_FALKORDB_PORT=6379
+
+# Embedding
+KIOKU_OLLAMA_BASE_URL=http://localhost:11434
+KIOKU_OLLAMA_MODEL=bge-m3
+""",
+            encoding="utf-8",
+        )
+        typer.echo(f"  ✅ Created: {config_file}")
+        typer.echo(f"  ⚠️  Edit {config_file} to add KIOKU_ANTHROPIC_API_KEY")
+
+    # Done
+    typer.echo("")
+    typer.echo("╔══════════════════════════════════════╗")
+    typer.echo("║         Setup Complete! 🎉           ║")
+    typer.echo("╚══════════════════════════════════════╝")
+    typer.echo("")
+    typer.echo("Quick start:")
+    typer.echo(f'  export KIOKU_USER_ID={resolved_user_id}')
+    typer.echo('  kioku save "Your first memory" --mood happy')
+    typer.echo('  kioku search "memory"')
+    typer.echo("")
+    typer.echo("For Claude Code / Cursor:")
+    typer.echo("  kioku setup --claude > CLAUDE.md    # copy to your project root")
+    typer.echo("  kioku setup --skill  > SKILL.md     # copy to skills/ directory")
+    typer.echo("")
 
 
 if __name__ == "__main__":

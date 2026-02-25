@@ -16,17 +16,16 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-
-[project.urls]
-Homepage = "https://github.com/phuc-nt/kioku-agent-kit"
-Repository = "https://github.com/phuc-nt/kioku-agent-kit"
-Issues = "https://github.com/phuc-nt/kioku-agent-kit/issues"
-
 dependencies = [
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
     "python-dotenv>=1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/phuc-nt/kioku-agent-kit"
+Repository = "https://github.com/phuc-nt/kioku-agent-kit"
+Issues = "https://github.com/phuc-nt/kioku-agent-kit/issues"
 
 [project.optional-dependencies]
 cli = ["typer>=0.24.1"]
@@ -60,6 +59,7 @@ target-version = "py311"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kioku"]
+artifacts = ["src/kioku/resources/*"]
 
 [build-system]
 requires = ["hatchling"]
