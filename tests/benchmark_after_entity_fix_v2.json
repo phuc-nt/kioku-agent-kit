@@ -1,0 +1,433 @@
+{
+  "tag": "after_entity_fix_v2",
+  "timestamp": "2026-02-25T20:49:03.946835",
+  "total_queries": 15,
+  "total_time_s": 22.96,
+  "avg_latency_s": 1.53,
+  "avg_graph_quality": 0.84,
+  "avg_content_relevance": 0.54,
+  "avg_entity_resolved": 0.93,
+  "avg_overall_quality": 0.74,
+  "source_distribution": {
+    "bm25": 26,
+    "vector": 51,
+    "graph": 71
+  },
+  "results": [
+    {
+      "query": "Mẹ tôi là người thế nào",
+      "category": "person",
+      "latency_s": 1.36,
+      "entities_extracted": [
+        "mẹ"
+      ],
+      "text_results": 10,
+      "graph_nodes": 18,
+      "graph_evidence": 10,
+      "connections": 0,
+      "sources": {
+        "graph": 1,
+        "bm25": 9
+      },
+      "graph_quality": 1.0,
+      "content_relevance": 1.0,
+      "entity_resolved": 1,
+      "overall_quality": 1.0,
+      "bm25_pct": 90,
+      "vector_pct": 0,
+      "graph_pct": 10
+    },
+    {
+      "query": "Bố tôi có đặc điểm gì",
+      "category": "person",
+      "latency_s": 0.97,
+      "entities_extracted": [
+        "bố"
+      ],
+      "text_results": 10,
+      "graph_nodes": 18,
+      "graph_evidence": 10,
+      "connections": 0,
+      "sources": {
+        "bm25": 10
+      },
+      "graph_quality": 1.0,
+      "content_relevance": 1.0,
+      "entity_resolved": 1,
+      "overall_quality": 1.0,
+      "bm25_pct": 100,
+      "vector_pct": 0,
+      "graph_pct": 0
+    },
+    {
+      "query": "con gái tôi tính cách ra sao",
+      "category": "person",
+      "latency_s": 1.1,
+      "entities_extracted": [
+        "con",
+        "tính cách"
+      ],
+      "text_results": 10,
+      "graph_nodes": 18,
+      "graph_evidence": 8,
+      "connections": 0,
+      "sources": {
+        "bm25": 5,
+        "graph": 3,
+        "vector": 2
+      },
+      "graph_quality": 1.0,
+      "content_relevance": 0.9,
+      "entity_resolved": 1,
+      "overall_quality": 0.96,
+      "bm25_pct": 50,
+      "vector_pct": 20,
+      "graph_pct": 30
+    },
+    {
+      "query": "quan hệ giữa tôi và mẹ",
+      "category": "relationship",
+      "latency_s": 1.07,
+      "entities_extracted": [
+        "Nguyễn Trọng Phúc",
+        "mẹ"
+      ],
+      "text_results": 10,
+      "graph_nodes": 18,
+      "graph_evidence": 6,
+      "connections": 0,
+      "sources": {
+        "graph": 5,
+        "vector": 5
+      },
+      "graph_quality": 1.0,
+      "content_relevance": 0.7,
+      "entity_resolved": 1,
+      "overall_quality": 0.88,
+      "bm25_pct": 0,
+      "vector_pct": 50,
+      "graph_pct": 50
+    },
+    {
+      "query": "ai có ảnh hưởng lớn nhất đến tôi",
+      "category": "relationship",
+      "latency_s": 1.64,
+      "entities_extracted": [
+        "mẹ",
+        "bố",
+        "bà nội",
+        "Phong",
+        "Vy",
+        "Hiếu",
+        "đại học",
+        "trường"
+      ],
+      "text_results": 10,
+      "graph_nodes": 54,
+      "graph_evidence": 10,
+      "connections": 8,
+      "sources": {
+        "graph": 6,
+        "vector": 4
+      },
+      "graph_quality": 1.0,
+      "content_relevance": 0.7,
+      "entity_resolved": 1,
+      "overall_quality": 0.88,
+      "bm25_pct": 0,
+      "vector_pct": 40,
+      "graph_pct": 60
+    },
+    {
+      "query": "kinh nghiệm làm BrSE là gì",
+      "category": "topic",
+      "latency_s": 1.37,
+      "entities_extracted": [
+        "Phúc",
+        "đồng nghiệp",
+        "seminar chia sẻ kiến thức AI",
+        "technical workshop",
+        "sự chuẩn bị"
+      ],
+      "text_results": 10,
+      "graph_nodes": 44,
+      "graph_evidence": 10,
+      "connections": 1,
+      "sources": {
+        "graph": 5,
+        "vector": 5
+      },
+      "graph_quality": 1.0,
+      "content_relevance": 0.1,
+      "entity_resolved": 1,
+      "overall_quality": 0.64,
+      "bm25_pct": 0,
+      "vector_pct": 50,
+      "graph_pct": 50
+    },
+    {
+      "query": "công việc ở TBV thế nào",
+      "category": "topic",
+      "latency_s": 1.12,
+      "entities_extracted": [
+        "công việc",
+        "TBV"
+      ],
+      "text_results": 10,
+      "graph_nodes": 19,
+      "graph_evidence": 8,
+      "connections": 0,
+      "sources": {
+        "bm25": 1,
+        "graph": 5,
+        "vector": 4
+      },
+      "graph_quality": 1.0,
+      "content_relevance": 0.4,
+      "entity_resolved": 1,
+      "overall_quality": 0.76,
+      "bm25_pct": 10,
+      "vector_pct": 40,
+      "graph_pct": 50
+    },
+    {
+      "query": "tôi đọc sách như thế nào",
+      "category": "topic",
+      "latency_s": 1.24,
+      "entities_extracted": [
+        "sách",
+        "đọc",
+        "học",
+        "đại học",
+        "technical workshop",
+        "seminar chia sẻ kiến thức AI"
+      ],
+      "text_results": 10,
+      "graph_nodes": 19,
+      "graph_evidence": 3,
+      "connections": 0,
+      "sources": {
+        "vector": 5,
+        "graph": 5
+      },
+      "graph_quality": 0.6,
+      "content_relevance": 0.8,
+      "entity_resolved": 1,
+      "overall_quality": 0.76,
+      "bm25_pct": 0,
+      "vector_pct": 50,
+      "graph_pct": 50
+    },
+    {
+      "query": "khi nào tôi cảm thấy hạnh phúc nhất",
+      "category": "emotion",
+      "latency_s": 2.0,
+      "entities_extracted": [
+        "hạnh phúc",
+        "tụ tập ăn uống",
+        "bạn bè",
+        "gia đình",
+        "mẹ",
+        "bố",
+        "anh",
+        "đại học",
+        "seminar chia sẻ kiến thức AI",
+        "technical workshop"
+      ],
+      "text_results": 10,
+      "graph_nodes": 60,
+      "graph_evidence": 10,
+      "connections": 7,
+      "sources": {
+        "graph": 5,
+        "vector": 5
+      },
+      "graph_quality": 1.0,
+      "content_relevance": 0.1,
+      "entity_resolved": 1,
+      "overall_quality": 0.64,
+      "bm25_pct": 0,
+      "vector_pct": 50,
+      "graph_pct": 50
+    },
+    {
+      "query": "điều gì khiến tôi căng thẳng",
+      "category": "emotion",
+      "latency_s": 1.27,
+      "entities_extracted": [
+        "khủng hoảng & thay đổi",
+        "trường",
+        "đại học",
+        "bố",
+        "mẹ",
+        "đồng nghiệp",
+        "bạn bè"
+      ],
+      "text_results": 10,
+      "graph_nodes": 51,
+      "graph_evidence": 10,
+      "connections": 11,
+      "sources": {
+        "graph": 5,
+        "vector": 5
+      },
+      "graph_quality": 1.0,
+      "content_relevance": 0.3,
+      "entity_resolved": 1,
+      "overall_quality": 0.72,
+      "bm25_pct": 0,
+      "vector_pct": 50,
+      "graph_pct": 50
+    },
+    {
+      "query": "Nguyễn Trọng Phúc là ai",
+      "category": "profile",
+      "latency_s": 1.53,
+      "entities_extracted": [
+        "anh",
+        "Phúc",
+        "đại học",
+        "bố",
+        "mẹ",
+        "bạn bè",
+        "đồng nghiệp"
+      ],
+      "text_results": 10,
+      "graph_nodes": 62,
+      "graph_evidence": 10,
+      "connections": 10,
+      "sources": {
+        "graph": 6,
+        "vector": 4
+      },
+      "graph_quality": 1.0,
+      "content_relevance": 0.2,
+      "entity_resolved": 1,
+      "overall_quality": 0.68,
+      "bm25_pct": 0,
+      "vector_pct": 40,
+      "graph_pct": 60
+    },
+    {
+      "query": "gia đình tôi gồm những ai",
+      "category": "profile",
+      "latency_s": 1.3,
+      "entities_extracted": [
+        "mẹ",
+        "bố",
+        "bà nội",
+        "con"
+      ],
+      "text_results": 10,
+      "graph_nodes": 29,
+      "graph_evidence": 10,
+      "connections": 6,
+      "sources": {
+        "graph": 6,
+        "vector": 4
+      },
+      "graph_quality": 1.0,
+      "content_relevance": 0.7,
+      "entity_resolved": 1,
+      "overall_quality": 0.88,
+      "bm25_pct": 0,
+      "vector_pct": 40,
+      "graph_pct": 60
+    },
+    {
+      "query": "chuyện gì xảy ra năm 2019",
+      "category": "temporal",
+      "latency_s": 3.48,
+      "entities_extracted": [
+        "khủng hoảng & thay đổi",
+        "technical workshop",
+        "sự chuẩn bị",
+        "seminar chia sẻ kiến thức AI"
+      ],
+      "text_results": 8,
+      "graph_nodes": 31,
+      "graph_evidence": 0,
+      "connections": 1,
+      "sources": {
+        "graph": 8
+      },
+      "graph_quality": 0.0,
+      "content_relevance": 0.12,
+      "entity_resolved": 0,
+      "overall_quality": 0.05,
+      "bm25_pct": 0,
+      "vector_pct": 0,
+      "graph_pct": 100
+    },
+    {
+      "query": "từ Nhật về Việt Nam",
+      "category": "temporal",
+      "latency_s": 0.97,
+      "entities_extracted": [
+        "Nhật",
+        "Việt Nam"
+      ],
+      "text_results": 10,
+      "graph_nodes": 0,
+      "graph_evidence": 0,
+      "connections": 0,
+      "sources": {
+        "bm25": 1,
+        "graph": 5,
+        "vector": 4
+      },
+      "graph_quality": 0.0,
+      "content_relevance": 0.7,
+      "entity_resolved": 1,
+      "overall_quality": 0.48,
+      "bm25_pct": 10,
+      "vector_pct": 40,
+      "graph_pct": 50
+    },
+    {
+      "query": "ý nghĩa cuộc sống",
+      "category": "abstract",
+      "latency_s": 2.51,
+      "entities_extracted": [
+        "anh",
+        "mẹ",
+        "bố",
+        "con",
+        "bà nội",
+        "trường",
+        "đại học",
+        "lớn lên",
+        "khủng hoảng & thay đổi",
+        "bạn bè",
+        "đồng nghiệp",
+        "Phúc",
+        "Phong",
+        "Vy",
+        "Hiếu",
+        "Vũ Kim Thư",
+        "tụ tập ăn uống",
+        "seminar chia sẻ kiến thức AI",
+        "technical workshop",
+        "sự chuẩn bị",
+        "hoà hợp",
+        "đi học",
+        "Sài Gòn"
+      ],
+      "text_results": 10,
+      "graph_nodes": 99,
+      "graph_evidence": 10,
+      "connections": 72,
+      "sources": {
+        "graph": 6,
+        "vector": 4
+      },
+      "graph_quality": 1.0,
+      "content_relevance": 0.4,
+      "entity_resolved": 1,
+      "overall_quality": 0.76,
+      "bm25_pct": 0,
+      "vector_pct": 40,
+      "graph_pct": 60
+    }
+  ]
+}
