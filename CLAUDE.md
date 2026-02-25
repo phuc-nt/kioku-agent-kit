@@ -1,28 +1,137 @@
-# Kioku MCP — Claude Assistant Guide
+# Kioku Agent Guide — CLAUDE.md
 
-You are Claude Code, an AI agent working on the Kioku MCP server project. Your goal is to help implement feature restructuring and maintain code quality based on the requirements defined in the `docs` directory.
+You are an AI assistant with access to **Kioku**, a long-term personal memory engine.
+This file tells you how to use it. Read it once at the start of each session.
 
-## Current Primary Task: Refactoring & CLI Support
-The user might ask you to implement the phases outlined in `docs/06-restructure-plan.md`. 
-**CRITICAL:**
-1. **Always read `docs/06-restructure-plan.md`** first to understand the Phase and objective you are working on.
-2. Read `src/kioku/server.py` — this file currently contains ALL business logic, FastMCP decorators, and tool coordination, and needs to be carefully refactored without breaking any functionality.
-3. Be aware that the project uses 6 core tools: `save_memory`, `search_memories`, `recall_related`, `explain_connection`, `get_timeline`, and `list_memory_dates` (Note: `get_memories_by_date` and `get_life_patterns` were recently removed to adhere to the Minimalist architecture).
+---
 
-## Codebase Context
-- Read `docs/01-requirements.md` and `docs/02-system-design.md` for architectural context.
-- We use a **Minimalist RAG Architecture**: `SQLite FTS5` for BM25, `ChromaDB` for Vector Search, and `FalkorDB` for GraphDB Traversal. 
-- Python 3.12 / 3.13 is used.
-- Dependencies are managed by `uv`. Use `uv add` to add packages.
+## What is Kioku?
 
-## Testing Strategy
-1. **Integration Tests (`tests/`)**: Run `make test` to execute fast integration tests using mocks (FakeEmbedder, InMemoryGraphStore). Tests must maintain 100% pass rate.
-2. **End-to-End Tests**: Run `export $(grep -v '^#' .env | xargs) && python tests/e2e_mcp_client.py`. This acts as a real MCP Client via stdio, executing all 6 tools, 2 resources, and 3 prompts against real Live DBs and Anthropic API. Ensure it passes without errors when logic is changed.
-   - **⚠️ CRITICAL DATA WARNING:** When running E2E tests, ensure that you use a separate mock user or mock tenant. **DO NOT** modify, pollute, or overwrite the real Telegram user's data (e.g., `~/.kioku/users/telegram/` or their sessions in `~/.openclaw`). All test data must be completely isolated.
+Kioku stores memories in a tri-hybrid index (BM25 keyword + semantic vector + knowledge graph).
+You interact via CLI commands. All data is local, namespaced by `KIOKU_USER_ID`.
 
-## Guidelines
-- Write strict type hints (`-> dict`, `-> list`, etc.).
-- Update integration tests in `/tests/` when modifying logic. Use `make test` to ensure 100% test pass.
-- **Graceful degradation is a must:** Missing databases (ChromaDB, FalkorDB) or missing LLM parameters should gracefully fallback (e.g., FakeEmbedder, InMemoryGraphStore) and never crash the CLI/MCP app.
-- Never write duplicate code logic. A `KiokuService` class should become the single source of truth for both MCP interfaces and future CLI interfaces.
-- Any modifications to terminal output logic for CLI should display properly in Vietnamese (`ensure_ascii=False` when printing JSON).
+**Check setup:**
+```bash
+kioku --version && echo "KIOKU_USER_ID=$KIOKU_USER_ID"
+```
+
+---
+
+## 4 Commands
+
+| Command | When to use |
+|---|---|
+| `kioku search "QUERY"` | Any recall, lookup, context retrieval |
+| `kioku save "TEXT"` | Any new information worth keeping |
+| `kioku timeline --from DATE --to DATE` | Chronological "what happened on X date?" |
+| `kioku entities` | Browse what's in the knowledge graph |
+
+---
+
+## Search — Always Enrich First
+
+Before calling `kioku search`, expand the query. The engine extracts entities from your query text — richer query = better extraction.
+
+**Enrichment rules:**
+1. Replace pronouns with real names (`"I"` → `"[UserName]"`)
+2. Add relevant entity names you already know
+3. Include context keywords
+
+**Examples:**
+```bash
+# User: "what do you know about me?"
+kioku search "[Name] profile background work family hobbies interests goals"
+
+# User: "how's Alice doing?"
+kioku search "Alice [Name] colleague relationship project recent events"
+
+# User: "what happened last year at work?"
+kioku search "[Name] work [company] 2025 projects achievements challenges"
+```
+
+**With explicit entities (faster, skip auto-extraction):**
+```bash
+kioku search "QUERY" --entities "Alice,ProjectX,2025" --limit 10
+```
+
+---
+
+## Save — Preserve Original Text
+
+```bash
+kioku save "TEXT" --mood MOOD --tags "tag1,tag2"
+kioku save "TEXT" --mood MOOD --tags "tag1" --event-time "YYYY-MM-DD"
+```
+
+**Rules:**
+- ✅ Keep the **full text** — never summarize what the user said
+- ✅ Split long content (>300 chars) into multiple focused saves
+- ✅ `--event-time` = when the event happened (not today), e.g. `"2024-03-21"`
+- ❌ Don't mix your commentary into the saved text
+
+**Mood options:** `happy`, `sad`, `excited`, `anxious`, `grateful`, `proud`, `reflective`, `neutral`, `tender`, `analytical`
+
+---
+
+## Timeline
+
+For date-based queries, use timeline instead of search:
+```bash
+# "What happened last Monday?"
+kioku timeline --from 2026-02-24 --to 2026-02-24
+
+# "Summary of last month"
+kioku timeline --from 2026-01-01 --to 2026-01-31
+```
+
+---
+
+## Decision Tree
+
+```
+User request?
+│
+├─ Recall / search / "who is X?" / "what do I know about Y?"
+│   → ENRICH → kioku search "enriched query"
+│
+├─ "What happened on [date] / last week / in [month]?"
+│   → kioku timeline --from DATE --to DATE
+│
+├─ "What's in your memory?" / browse
+│   → kioku entities
+│
+└─ User shares new info / "remember this"
+    → kioku save "text" --mood X --tags "a,b"
+      (split if >300 chars)
+```
+
+---
+
+## Session Start Pattern
+
+At the start of a new conversation, proactively recall user context:
+```bash
+kioku search "[UserName] profile background current focus goals"
+```
+
+This gives you context before the user even asks.
+
+---
+
+## Important
+
+- **Never invent memories.** If search returns 0 results, say so honestly.
+- **Always save** when user shares something new — don't wait to be asked.
+- **Graph context** in search results (`graph_context.evidence`) often contains richer relationship data than raw text results. Use both.
+
+---
+
+## Data Storage
+
+All data stored at `~/.kioku/users/$KIOKU_USER_ID/`:
+- `memory/YYYY-MM-DD.md` — human-readable markdown (source of truth)
+- SQLite FTS5 — keyword index
+- ChromaDB — vector embeddings
+- FalkorDB — knowledge graph
+
+The `.md` files are always readable. If DBs fail, memories aren't lost.
