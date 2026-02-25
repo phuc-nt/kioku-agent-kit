@@ -194,3 +194,61 @@ Config D overall_quality = **0.74** with v2 scoring.
 - `tests/benchmark_after_entity_fix.json` — Config D (+ entity resolution, v1 scoring)
 - `tests/benchmark_after_entity_fix_v2.json` — Config D (+ entity resolution, v2 scoring)
 - `tests/benchmark_search.py` — Benchmark script (v2 scoring)
+
+---
+
+## Post-Benchmark Bug Fixes (2026-02-25)
+
+### Fix 1: Temporal query routing (`service.py`)
+
+Added `_extract_temporal_range()` staticmethod that detects Vietnamese year/month patterns:
+
+| Pattern | Example | Result |
+|---|---|---|
+| Specific year | `"chuyện gì xảy ra năm 2019"` | `2019-01-01 .. 2019-12-31` |
+| Specific month | `"tháng 3/2019 tôi làm gì"` | `2019-03-01 .. 2019-03-31` |
+| Relative (last year) | `"năm ngoái tôi ở đâu"` | `2025-01-01 .. 2025-12-31` |
+| Relative (this year) | `"năm nay có gì"` | `2026-01-01 .. 2026-12-31` |
+| Non-temporal | `"Nguyễn Trọng Phúc là ai"` | `None, None` |
+
+Auto-injects `date_from`/`date_to` → SQLite/ChromaDB filter by date → temporal queries now return filtered results.
+
+### Fix 2: Word-boundary entity matching (`graph_writer.py`, `graph.py`)
+
+`search_entities()` now re-ranks candidates by match quality:
+1. Exact match (`priority=0`)
+2. Starts-with for multi-word, or starts-with for single-word queries (`priority=1`)
+3. Whole-word inner match (`priority=2`)
+4. Pure substring fallback (`priority=3`)
+
+`graph_search()` adds `(?<!\w)query(?!\w)` regex filter before accepting seed nodes — prevents "Nhật" from seeding traversal from "Sinh nhật" (wrong entity).
+
+### Fix 3: JSON parse resilience for Haiku 4.5 (`extractor.py`)
+
+Root cause: `max_tokens=1024` was too small — JSON output truncated at ~2200 chars causing `Expecting ',' delimiter` errors.
+
+Fixes:
+- `max_tokens`: 1024 → **2048**
+- `_parse_response()` now tries 3 recovery strategies before giving up:
+  1. Direct `json.loads`
+  2. Strip trailing commas (common Haiku 4.5 pattern)
+  3. Walk back truncated JSON to find last valid position
+- Result: **71/71 entries ingested with 0 hard errors** (vs ~35 JSON warnings before)
+
+### Fix 4: `merge_entity_aliases()` signature bug (`graph_writer.py`)
+
+**Bug:** Signature was `(aliases: list, canonical: str)` but all callers passed `(canonical: str, aliases: list)` → canonical string was iterated char-by-char → created single-char Entity nodes in FalkorDB with `name=list` type → crashed CONTAINS queries with `ResponseError: Type mismatch: expected String or Null but was List`.
+
+**Fix:** Swapped signature to `(canonical: str, aliases: list[str])` + added `isinstance()` type guards.
+
+**DB repair:** Dropped RANGE index → deleted 3 corrupted nodes (by internal ID) → recreated index.
+
+### Re-ingestion after all fixes
+
+```
+Dataset: 71 entries | Time: 413s (5.8s/entry) | Success: 71/71
+SQLite: 71 + 4 (agent session) = 75 entries
+ChromaDB: 75 docs
+FalkorDB: 477 nodes | 519 RELATES | 13 SAME_AS
+```
+
