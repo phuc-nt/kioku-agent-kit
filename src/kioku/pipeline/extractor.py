@@ -137,7 +137,7 @@ class ClaudeExtractor:
         try:
             response = self.client.messages.create(
                 model=self.model,
-                max_tokens=1024,
+                max_tokens=2048,
                 messages=[{"role": "user", "content": prompt}],
             )
             content = response.content[0].text
@@ -147,7 +147,13 @@ class ClaudeExtractor:
             return ExtractionResult()
 
     def _parse_response(self, text: str) -> ExtractionResult:
-        """Parse LLM JSON response into ExtractionResult."""
+        """Parse LLM JSON response into ExtractionResult.
+
+        Tries multiple recovery strategies for malformed JSON from Haiku 4.5:
+          1. Standard json.loads on cleaned text
+          2. Strip trailing commas (common Haiku 4.5 issue)
+          3. Truncated JSON: try to find the last complete array item
+        """
         try:
             # Strip markdown code fences if present
             text = text.strip()
@@ -162,30 +168,63 @@ class ClaudeExtractor:
             if start != -1 and end != -1:
                 text = text[start : end + 1]
 
-            data = json.loads(text)
-            entities = [
-                Entity(name=e["name"], type=e["type"])
-                for e in data.get("entities", [])
-                if "name" in e and "type" in e
-            ]
-            relationships = [
-                Relationship(
-                    source=r["source"],
-                    target=r["target"],
-                    rel_type=r.get("type", "TOPICAL"),
-                    weight=r.get("weight", 0.5),
-                    evidence=r.get("evidence", ""),
-                )
-                for r in data.get("relationships", [])
-                if "source" in r and "target" in r
-            ]
-            event_time = data.get("event_time") or None
-            return ExtractionResult(
-                entities=entities, relationships=relationships, event_time=event_time
-            )
-        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            # --- Attempt 1: direct parse ---
+            try:
+                data = json.loads(text)
+                return self._build_result(data)
+            except json.JSONDecodeError:
+                pass
+
+            # --- Attempt 2: strip trailing commas before ] or } ---
+            import re as _re
+            cleaned = _re.sub(r",\s*([}\]])", r"\1", text)
+            try:
+                data = json.loads(cleaned)
+                log.debug("JSON recovered via trailing-comma strip")
+                return self._build_result(data)
+            except json.JSONDecodeError:
+                pass
+
+            # --- Attempt 3: truncated JSON — try progressively shorter text ---
+            # Walk back from end, try closing open arrays/objects
+            for trim_at in range(len(cleaned) - 1, max(len(cleaned) - 500, 0), -1):
+                ch = cleaned[trim_at]
+                if ch in (",", "{", "["):
+                    candidate = cleaned[:trim_at] + "}}"  # close relationships + root
+                    try:
+                        data = json.loads(candidate)
+                        log.debug("JSON recovered via truncation trim at %d", trim_at)
+                        return self._build_result(data)
+                    except json.JSONDecodeError:
+                        continue
+
+            log.warning("Failed to parse extraction response after all recovery attempts")
+            return ExtractionResult()
+
+        except Exception as e:
             log.warning("Failed to parse extraction response: %s", e)
             return ExtractionResult()
+
+    def _build_result(self, data: dict) -> ExtractionResult:
+        """Build ExtractionResult from parsed JSON dict."""
+        entities = [
+            Entity(name=e["name"], type=e["type"])
+            for e in data.get("entities", [])
+            if isinstance(e, dict) and "name" in e and "type" in e
+        ]
+        relationships = [
+            Relationship(
+                source=r["source"],
+                target=r["target"],
+                rel_type=r.get("type", "TOPICAL"),
+                weight=r.get("weight", 0.5),
+                evidence=r.get("evidence", ""),
+            )
+            for r in data.get("relationships", [])
+            if isinstance(r, dict) and "source" in r and "target" in r
+        ]
+        event_time = data.get("event_time") or None
+        return ExtractionResult(entities=entities, relationships=relationships, event_time=event_time)
 
 
 class FakeExtractor:
