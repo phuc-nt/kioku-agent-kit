@@ -93,7 +93,7 @@ class Extractor(Protocol):
 class ClaudeExtractor:
     """Extract entities and relationships using Claude Haiku."""
 
-    def __init__(self, api_key: str, model: str = "claude-3-haiku-20240307"):
+    def __init__(self, api_key: str, model: str = "claude-haiku-4-5-20251001"):
         self.model = model
         self._client = None
         self._api_key = api_key

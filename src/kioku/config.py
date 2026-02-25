@@ -43,7 +43,7 @@ class Settings(BaseSettings):
 
     # Ollama (Phase 2)
     ollama_host: str = "http://localhost:11434"
-    ollama_model: str = "nomic-embed-text"
+    ollama_model: str = "bge-m3"
 
     # LLM (Phase 3)
     anthropic_api_key: str = ""

@@ -1,0 +1,343 @@
+{
+  "tag": "after",
+  "timestamp": "2026-02-25T17:51:20.297259",
+  "total_queries": 15,
+  "total_time_s": 22.87,
+  "avg_latency_s": 1.52,
+  "source_distribution": {
+    "bm25": 14,
+    "vector": 46,
+    "graph": 62
+  },
+  "results": [
+    {
+      "query": "Mẹ tôi là người thế nào",
+      "category": "person",
+      "latency_s": 2.05,
+      "entities_extracted": [
+        "Mẹ",
+        "tôi",
+        "tính cách"
+      ],
+      "entity_match_score": 1.0,
+      "text_results": 10,
+      "graph_nodes": 16,
+      "graph_evidence": 3,
+      "connections": 0,
+      "sources": {
+        "vector": 5,
+        "graph": 5
+      },
+      "content_hits": 9,
+      "bm25_pct": 0,
+      "vector_pct": 50,
+      "graph_pct": 50
+    },
+    {
+      "query": "Bố tôi có đặc điểm gì",
+      "category": "person",
+      "latency_s": 1.34,
+      "entities_extracted": [
+        "Bố",
+        "đặc điểm"
+      ],
+      "entity_match_score": 1.0,
+      "text_results": 10,
+      "graph_nodes": 16,
+      "graph_evidence": 5,
+      "connections": 0,
+      "sources": {
+        "vector": 5,
+        "graph": 5
+      },
+      "content_hits": 7,
+      "bm25_pct": 0,
+      "vector_pct": 50,
+      "graph_pct": 50
+    },
+    {
+      "query": "con gái tôi tính cách ra sao",
+      "category": "person",
+      "latency_s": 1.47,
+      "entities_extracted": [
+        "con",
+        "tính cách"
+      ],
+      "entity_match_score": 0.0,
+      "text_results": 10,
+      "graph_nodes": 19,
+      "graph_evidence": 5,
+      "connections": 0,
+      "sources": {
+        "bm25": 5,
+        "graph": 3,
+        "vector": 2
+      },
+      "content_hits": 2,
+      "bm25_pct": 50,
+      "vector_pct": 20,
+      "graph_pct": 30
+    },
+    {
+      "query": "quan hệ giữa tôi và mẹ",
+      "category": "relationship",
+      "latency_s": 1.59,
+      "entities_extracted": [
+        "Tôi",
+        "Mẹ",
+        "quan hệ"
+      ],
+      "entity_match_score": 0.5,
+      "text_results": 10,
+      "graph_nodes": 16,
+      "graph_evidence": 4,
+      "connections": 0,
+      "sources": {
+        "vector": 5,
+        "graph": 5
+      },
+      "content_hits": 9,
+      "bm25_pct": 0,
+      "vector_pct": 50,
+      "graph_pct": 50
+    },
+    {
+      "query": "ai có ảnh hưởng lớn nhất đến tôi",
+      "category": "relationship",
+      "latency_s": 1.89,
+      "entities_extracted": [
+        "AI",
+        "Tôi",
+        "Ảnh hưởng"
+      ],
+      "entity_match_score": 0.0,
+      "text_results": 10,
+      "graph_nodes": 16,
+      "graph_evidence": 1,
+      "connections": 0,
+      "sources": {
+        "vector": 5,
+        "graph": 5
+      },
+      "content_hits": 4,
+      "bm25_pct": 0,
+      "vector_pct": 50,
+      "graph_pct": 50
+    },
+    {
+      "query": "kinh nghiệm làm BrSE là gì",
+      "category": "topic",
+      "latency_s": 1.42,
+      "entities_extracted": [
+        "BrSE",
+        "kinh nghiệm"
+      ],
+      "entity_match_score": 1.0,
+      "text_results": 10,
+      "graph_nodes": 19,
+      "graph_evidence": 7,
+      "connections": 0,
+      "sources": {
+        "vector": 4,
+        "graph": 6
+      },
+      "content_hits": 5,
+      "bm25_pct": 0,
+      "vector_pct": 40,
+      "graph_pct": 60
+    },
+    {
+      "query": "công việc ở TBV thế nào",
+      "category": "topic",
+      "latency_s": 1.63,
+      "entities_extracted": [
+        "TBV",
+        "Công việc"
+      ],
+      "entity_match_score": 1.0,
+      "text_results": 10,
+      "graph_nodes": 33,
+      "graph_evidence": 10,
+      "connections": 0,
+      "sources": {
+        "bm25": 1,
+        "graph": 5,
+        "vector": 4
+      },
+      "content_hits": 3,
+      "bm25_pct": 10,
+      "vector_pct": 40,
+      "graph_pct": 50
+    },
+    {
+      "query": "tôi đọc sách như thế nào",
+      "category": "topic",
+      "latency_s": 1.42,
+      "entities_extracted": [
+        "tôi",
+        "đọc sách"
+      ],
+      "entity_match_score": 1.0,
+      "text_results": 10,
+      "graph_nodes": 19,
+      "graph_evidence": 4,
+      "connections": 0,
+      "sources": {
+        "bm25": 1,
+        "vector": 4,
+        "graph": 5
+      },
+      "content_hits": 7,
+      "bm25_pct": 10,
+      "vector_pct": 40,
+      "graph_pct": 50
+    },
+    {
+      "query": "khi nào tôi cảm thấy hạnh phúc nhất",
+      "category": "emotion",
+      "latency_s": 2.42,
+      "entities_extracted": [
+        "tôi",
+        "hạnh phúc"
+      ],
+      "entity_match_score": 0,
+      "text_results": 3,
+      "graph_nodes": 0,
+      "graph_evidence": 0,
+      "connections": 0,
+      "sources": {
+        "vector": 3
+      },
+      "content_hits": 0,
+      "bm25_pct": 0,
+      "vector_pct": 100,
+      "graph_pct": 0
+    },
+    {
+      "query": "điều gì khiến tôi căng thẳng",
+      "category": "emotion",
+      "latency_s": 1.16,
+      "entities_extracted": [
+        "Căng thẳng"
+      ],
+      "entity_match_score": 0.0,
+      "text_results": 1,
+      "graph_nodes": 0,
+      "graph_evidence": 0,
+      "connections": 0,
+      "sources": {
+        "bm25": 1
+      },
+      "content_hits": 0,
+      "bm25_pct": 100,
+      "vector_pct": 0,
+      "graph_pct": 0
+    },
+    {
+      "query": "Nguyễn Trọng Phúc là ai",
+      "category": "profile",
+      "latency_s": 1.16,
+      "entities_extracted": [
+        "Nguyễn Trọng Phúc"
+      ],
+      "entity_match_score": 1.0,
+      "text_results": 8,
+      "graph_nodes": 16,
+      "graph_evidence": 0,
+      "connections": 0,
+      "sources": {
+        "bm25": 1,
+        "graph": 7
+      },
+      "content_hits": 2,
+      "bm25_pct": 12,
+      "vector_pct": 0,
+      "graph_pct": 88
+    },
+    {
+      "query": "gia đình tôi gồm những ai",
+      "category": "profile",
+      "latency_s": 1.39,
+      "entities_extracted": [
+        "Tôi",
+        "Gia đình"
+      ],
+      "entity_match_score": 1.0,
+      "text_results": 10,
+      "graph_nodes": 19,
+      "graph_evidence": 7,
+      "connections": 0,
+      "sources": {
+        "bm25": 1,
+        "vector": 4,
+        "graph": 5
+      },
+      "content_hits": 6,
+      "bm25_pct": 10,
+      "vector_pct": 40,
+      "graph_pct": 50
+    },
+    {
+      "query": "chuyện gì xảy ra năm 2019",
+      "category": "temporal",
+      "latency_s": 1.09,
+      "entities_extracted": [
+        "2019"
+      ],
+      "entity_match_score": 1.0,
+      "text_results": 10,
+      "graph_nodes": 19,
+      "graph_evidence": 7,
+      "connections": 0,
+      "sources": {
+        "bm25": 4,
+        "graph": 6
+      },
+      "content_hits": 6,
+      "bm25_pct": 40,
+      "vector_pct": 0,
+      "graph_pct": 60
+    },
+    {
+      "query": "từ Nhật về Việt Nam",
+      "category": "temporal",
+      "latency_s": 1.8,
+      "entities_extracted": [
+        "Nhật",
+        "Việt Nam",
+        "về nước"
+      ],
+      "entity_match_score": 1.0,
+      "text_results": 10,
+      "graph_nodes": 14,
+      "graph_evidence": 2,
+      "connections": 0,
+      "sources": {
+        "vector": 5,
+        "graph": 5
+      },
+      "content_hits": 7,
+      "bm25_pct": 0,
+      "vector_pct": 50,
+      "graph_pct": 50
+    },
+    {
+      "query": "ý nghĩa cuộc sống",
+      "category": "abstract",
+      "latency_s": 1.01,
+      "entities_extracted": [
+        "ý nghĩa cuộc sống"
+      ],
+      "entity_match_score": 0,
+      "text_results": 0,
+      "graph_nodes": 0,
+      "graph_evidence": 0,
+      "connections": 0,
+      "sources": {},
+      "content_hits": 0,
+      "bm25_pct": 0,
+      "vector_pct": 0,
+      "graph_pct": 0
+    }
+  ]
+}
