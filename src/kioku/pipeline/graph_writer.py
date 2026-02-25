@@ -84,6 +84,10 @@ class FalkorGraphStore:
             self.graph.query("CREATE INDEX FOR (e:Entity) ON (e.name)")
         except Exception:
             pass  # Index may already exist
+        try:
+            self.graph.query("CREATE INDEX FOR (e:Entity) ON (e.canonical)")
+        except Exception:
+            pass
 
     def upsert(
         self, extraction: ExtractionResult, date: str, timestamp: str, source_hash: str = ""
@@ -130,21 +134,67 @@ class FalkorGraphStore:
             )
 
     def get_canonical_entities(self, limit: int = 50) -> list[dict]:
-        """Get top canonical entity names with types for context-aware operations.
+        """Get top canonical entity names with types and aliases for context-aware operations.
 
-        Returns list of {"name": ..., "type": ..., "mentions": ...} ordered by mention_count desc.
+        Returns list of {"name": ..., "type": ..., "mentions": ..., "aliases": [...]} ordered by mention_count desc.
+        Includes SAME_AS aliases so LLM can map synonyms to canonical names.
         """
         result = self.graph.query(
             """MATCH (e:Entity)
-               RETURN e.name, e.type, e.mention_count
+               OPTIONAL MATCH (alias:Entity)-[:SAME_AS]->(e)
+               WITH e, collect(alias.name) AS aliases
+               RETURN e.name, e.type, e.mention_count, aliases
                ORDER BY e.mention_count DESC
                LIMIT $limit""",
             {"limit": limit},
         )
         return [
-            {"name": row[0], "type": row[1] or "", "mentions": row[2] or 0}
+            {
+                "name": row[0],
+                "type": row[1] or "",
+                "mentions": row[2] or 0,
+                "aliases": [a for a in (row[3] or []) if a],
+            }
             for row in result.result_set
         ]
+
+    def merge_entity_aliases(self, aliases: list[str], canonical: str) -> None:
+        """Link alias entity names to a canonical entity via SAME_AS relationship.
+
+        Creates the canonical entity if it doesn't exist, then creates SAME_AS
+        edges from each alias node → canonical node. This allows traverse() to
+        collect all evidence scattered across fragmented aliases.
+
+        Example:
+            merge_entity_aliases(["Phúc", "phuc-nt", "anh", "self"], "Nguyễn Trọng Phúc")
+        """
+        now = datetime.now(JST).isoformat()
+        # Ensure canonical node exists
+        self.graph.query(
+            """MERGE (e:Entity {name: $name})
+               ON CREATE SET e.type = 'PERSON', e.mention_count = 0,
+                             e.first_seen = $now, e.last_seen = $now, e.canonical = true
+               ON MATCH SET e.canonical = true""",
+            {"name": canonical, "now": now},
+        )
+        for alias in aliases:
+            if alias == canonical:
+                continue
+            # Ensure alias node exists
+            self.graph.query(
+                """MERGE (e:Entity {name: $name})
+                   ON CREATE SET e.type = 'PERSON', e.mention_count = 0,
+                                 e.first_seen = $now, e.last_seen = $now""",
+                {"name": alias, "now": now},
+            )
+            # Create SAME_AS edge alias → canonical
+            self.graph.query(
+                """MATCH (alias:Entity {name: $alias})
+                   MATCH (canon:Entity {name: $canonical})
+                   MERGE (alias)-[:SAME_AS]->(canon)""",
+                {"alias": alias, "canonical": canonical},
+            )
+        log.info("Linked aliases %s → canonical '%s'", aliases, canonical)
 
     def search_entities(self, query: str, limit: int = 10) -> list[GraphNode]:
         """Search for entities by name (case-insensitive contains)."""
@@ -168,44 +218,75 @@ class FalkorGraphStore:
         ]
 
     def traverse(self, entity_name: str, max_hops: int = 2, limit: int = 20) -> GraphSearchResult:
-        """Multi-hop traversal from a seed entity."""
-        result = self.graph.query(
-            """MATCH (start:Entity)
-               WHERE toLower(start.name) = toLower($name)
-               MATCH path = (start)-[r:RELATES*1.."""
-            + str(max_hops)
-            + """]-(connected:Entity)
-               RETURN start.name, start.type,
-                      connected.name, connected.type,
-                      [rel IN relationships(path) | rel.type] AS rel_types,
-                      [rel IN relationships(path) | rel.weight] AS weights,
-                      [rel IN relationships(path) | rel.evidence] AS evidences,
-                      [rel IN relationships(path) | rel.source_hash] AS source_hashes
-               LIMIT $limit""",
-            {"name": entity_name, "limit": limit},
-        )
+        """Multi-hop traversal from a seed entity.
 
-        nodes_map = {}
-        edges = []
-        for row in result.result_set:
-            src_name, src_type = row[0], row[1]
-            tgt_name, tgt_type = row[2], row[3]
-            rel_types, weights, evidences, source_hashes = row[4], row[5], row[6], row[7]
+        Phase 9: Also follows SAME_AS edges to collect evidence from aliased entities.
+        If entity_name is an alias, traverses from the canonical node too.
+        """
+        nodes_map: dict[str, GraphNode] = {}
+        edges: list[GraphEdge] = []
+        seen_edge_keys: set[str] = set()
 
-            nodes_map[src_name] = GraphNode(name=src_name, type=src_type)
-            nodes_map[tgt_name] = GraphNode(name=tgt_name, type=tgt_type)
+        def _run_traverse(name: str) -> None:
+            result = self.graph.query(
+                """MATCH (start:Entity)
+                   WHERE toLower(start.name) = toLower($name)
+                   MATCH path = (start)-[r:RELATES*1.."""
+                + str(max_hops)
+                + """]-(connected:Entity)
+                   RETURN start.name, start.type,
+                          connected.name, connected.type,
+                          [rel IN relationships(path) | rel.type] AS rel_types,
+                          [rel IN relationships(path) | rel.weight] AS weights,
+                          [rel IN relationships(path) | rel.evidence] AS evidences,
+                          [rel IN relationships(path) | rel.source_hash] AS source_hashes
+                   LIMIT $limit""",
+                {"name": name, "limit": limit},
+            )
+            for row in result.result_set:
+                src_name, src_type = row[0], row[1]
+                tgt_name, tgt_type = row[2], row[3]
+                rel_types, weights, evidences, source_hashes = row[4], row[5], row[6], row[7]
+                nodes_map[src_name] = GraphNode(name=src_name, type=src_type)
+                nodes_map[tgt_name] = GraphNode(name=tgt_name, type=tgt_type)
+                if rel_types:
+                    key = f"{src_name}|{tgt_name}|{source_hashes[-1] if source_hashes else ''}"
+                    if key not in seen_edge_keys:
+                        seen_edge_keys.add(key)
+                        edges.append(GraphEdge(
+                            source=src_name,
+                            target=tgt_name,
+                            rel_type=rel_types[-1] if rel_types else "",
+                            weight=weights[-1] if weights else 0.5,
+                            evidence=evidences[-1] if evidences else "",
+                            source_hash=source_hashes[-1] if source_hashes else "",
+                        ))
 
-            if rel_types:
-                edges.append(
-                    GraphEdge(
-                        source=src_name,
-                        target=tgt_name,
-                        rel_type=rel_types[-1] if rel_types else "",
-                        weight=weights[-1] if weights else 0.5,
-                        evidence=evidences[-1] if evidences else "",
-                        source_hash=source_hashes[-1] if source_hashes else "",
-                    )
-                )
+        # Primary traversal
+        _run_traverse(entity_name)
+
+        # Follow SAME_AS: if alias → canonical, also traverse canonical
+        try:
+            same_as = self.graph.query(
+                """MATCH (alias:Entity)-[:SAME_AS]->(canon:Entity)
+                   WHERE toLower(alias.name) = toLower($name)
+                   RETURN canon.name""",
+                {"name": entity_name},
+            )
+            for row in same_as.result_set:
+                _run_traverse(row[0])
+
+            # Also: if canonical, collect all aliases' traversals
+            all_aliases = self.graph.query(
+                """MATCH (alias:Entity)-[:SAME_AS]->(canon:Entity)
+                   WHERE toLower(canon.name) = toLower($name)
+                   RETURN alias.name""",
+                {"name": entity_name},
+            )
+            for row in all_aliases.result_set:
+                _run_traverse(row[0])
+        except Exception as e:
+            log.debug("SAME_AS traversal failed (non-critical): %s", e)
 
         return GraphSearchResult(nodes=list(nodes_map.values()), edges=edges)
 

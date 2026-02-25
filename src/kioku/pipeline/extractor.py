@@ -58,6 +58,7 @@ Rules:
 - "weight" reflects how strong the connection is (0.1=weak, 1.0=very strong)
 - "evidence" is the exact quote from the text that supports this relationship
 - Keep entity names short and consistent (e.g., "Hùng" not "sếp Hùng")
+- LANGUAGE RULE: Entity names MUST be in the SAME LANGUAGE as the input text. If the text is Vietnamese, use Vietnamese entity names (e.g., "sách" not "books", "công việc" not "work"). Only use English names for proper nouns that are inherently English (e.g., brand names, GitHub usernames).
 {context_entities_block}
 - Return ONLY valid JSON, no markdown, no explanation
 

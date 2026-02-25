@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     # LLM (Phase 3)
     anthropic_api_key: str = ""
 
+    # User identity hint for search entity mapping
+    # e.g. "Nguyễn Trọng Phúc, also known as phuc-nt, anh"
+    user_identity: str = ""
+
     model_config = {"env_prefix": "KIOKU_", "env_file": ".env", "extra": "ignore"}
 
     def model_post_init(self, __context) -> None:

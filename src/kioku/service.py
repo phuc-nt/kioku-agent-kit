@@ -229,22 +229,57 @@ class KiokuService:
         if not entities:
             try:
                 canonical = self.graph_store.get_canonical_entities(limit=50)
-                context_names = [e["name"] for e in canonical]
-                extraction = self.extractor.extract(
-                    query, context_entities=context_names
+
+                # Build context: PERSON/PLACE/EVENT entities + aliases (key for name mapping)
+                entity_lines = []
+                for e in canonical:
+                    if e.get("type") in ("PERSON", "PLACE", "EVENT", "ORGANIZATION", ""):
+                        alias_part = ""
+                        if e.get("aliases"):
+                            alias_part = "|aliases:" + ",".join(e["aliases"][:4])
+                        entity_lines.append(e["name"] + alias_part)
+
+                # User identity hint from settings (helps for pronouns/full-names)
+                user_hint = getattr(self.settings, "user_identity", "") or ""
+
+                entity_map_str = ", ".join(entity_lines[:30]) if entity_lines else "(empty)"
+
+                search_prompt = (
+                    f"Graph entities: {entity_map_str}\n"
+                    + (f"Diary owner: {user_hint}\n" if user_hint else "")
+                    + f"Query: {query}\n"
+                    "Return a JSON array of entity name strings to search for. "
+                    "Use canonical names from the graph (not aliases). "
+                    "Use Vietnamese if query is Vietnamese. "
+                    'Example output: ["m\u1eb9", "TBV"]\n'
+                    "Output:"
                 )
-                auto_entities = [e.name for e in extraction.entities]
-                if auto_entities:
-                    entities = auto_entities
-                    log.info("Auto-extracted entities: %s", entities)
+
+                msg = [{"role": "user", "content": search_prompt}]
+                resp = self.extractor.client.messages.create(
+                    model=self.extractor.model,
+                    max_tokens=256,
+                    messages=msg,
+                )
+                raw = resp.content[0].text.strip()
+                import json as _json
+                start_idx = raw.find("[")
+                end_idx = raw.rfind("]")
+                if start_idx != -1 and end_idx != -1:
+                    auto_entities = _json.loads(raw[start_idx:end_idx + 1])
+                    if isinstance(auto_entities, list):
+                        entities = [str(e) for e in auto_entities if e]
+                        log.info("Auto-extracted entities (search prompt): %s", entities)
             except Exception as e:
                 log.warning("Entity auto-extraction failed: %s", e)
 
         if entities:
             # Entity-focused mode: all 3 legs target the same entities
-            # BM25: search using entity names as keywords
-            bm25_query = " ".join(entities)
-            bm25_results = bm25_search(self.keyword_index, bm25_query, limit=limit * 3)
+            # BM25: search using entity names as keywords (strip FTS5 special chars)
+            import re as _re
+            safe_entities = [_re.sub(r'[&|*"^()]', ' ', e).strip() for e in entities]
+            bm25_query = " ".join(e for e in safe_entities if e)
+            bm25_results = bm25_search(self.keyword_index, bm25_query, limit=limit * 3) if bm25_query else []
 
             # Vector: search with original query but filter to entity-relevant results
             vec_all = vector_search(self.vector_store, query, limit=limit * 5)
