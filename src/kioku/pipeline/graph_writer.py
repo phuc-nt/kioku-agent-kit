@@ -158,16 +158,28 @@ class FalkorGraphStore:
             for row in result.result_set
         ]
 
-    def merge_entity_aliases(self, aliases: list[str], canonical: str) -> None:
+    def merge_entity_aliases(self, canonical: str, aliases: list[str]) -> None:
         """Link alias entity names to a canonical entity via SAME_AS relationship.
+
+        Args:
+            canonical: The primary / canonical entity name (must be a string).
+            aliases:   List of alternative names that should point to canonical.
 
         Creates the canonical entity if it doesn't exist, then creates SAME_AS
         edges from each alias node → canonical node. This allows traverse() to
-        collect all evidence scattered across fragmented aliases.
-
-        Example:
-            merge_entity_aliases(["Phúc", "phuc-nt", "anh", "self"], "Nguyễn Trọng Phúc")
+        find evidence from all aliases when searching for this entity.
         """
+        # Guard: catch wrong argument order early
+        if not isinstance(canonical, str):
+            raise TypeError(
+                f"merge_entity_aliases() expected canonical to be str, got {type(canonical).__name__}. "
+                "Signature is merge_entity_aliases(canonical: str, aliases: list[str])."
+            )
+        if not isinstance(aliases, list):
+            raise TypeError(
+                f"merge_entity_aliases() expected aliases to be list, got {type(aliases).__name__}."
+            )
+
         now = datetime.now(JST).isoformat()
         # Ensure canonical node exists
         self.graph.query(
