@@ -38,9 +38,12 @@ def graph_search(
     if entities:
         # Priority path: Agent has pre-extracted entity names
         for entity_name in entities:
-            for entity in store.search_entities(entity_name, limit=3):
-                if entity.name not in seed_map:
-                    seed_map[entity.name] = entity
+            pat = r"(?<!\w)" + re.escape(entity_name) + r"(?!\w)"
+            for entity in store.search_entities(entity_name, limit=5):
+                # Only accept if entity_name is a whole word inside the node name
+                if re.search(pat, entity.name, re.IGNORECASE):
+                    if entity.name not in seed_map:
+                        seed_map[entity.name] = entity
     else:
         # Fallback: tokenize query and search per-token
         tokens = re.findall(r"\w+", query.lower())
@@ -48,9 +51,11 @@ def graph_search(
         if not meaningful_tokens:
             return []
         for token in meaningful_tokens:
-            for entity in store.search_entities(token, limit=3):
-                if entity.name not in seed_map:
-                    seed_map[entity.name] = entity
+            pat = r"(?<!\w)" + re.escape(token) + r"(?!\w)"
+            for entity in store.search_entities(token, limit=5):
+                if re.search(pat, entity.name, re.IGNORECASE):
+                    if entity.name not in seed_map:
+                        seed_map[entity.name] = entity
 
     if not seed_map:
         return []

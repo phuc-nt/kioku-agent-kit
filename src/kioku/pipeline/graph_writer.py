@@ -197,16 +197,24 @@ class FalkorGraphStore:
         log.info("Linked aliases %s → canonical '%s'", aliases, canonical)
 
     def search_entities(self, query: str, limit: int = 10) -> list[GraphNode]:
-        """Search for entities by name (case-insensitive contains)."""
+        """Search for entities by name (case-insensitive contains), preferring exact/word-boundary matches.
+
+        Fetches more candidates than needed, then re-ranks:
+          1. Exact match (toLower(name) == toLower(query))
+          2. Word-boundary match (name starts/ends with query word)
+          3. Substring match (original behaviour — kept as fallback)
+
+        This prevents "Nhật" from matching "sinh nhật" ahead of "Nhật Bản".
+        """
         result = self.graph.query(
             """MATCH (e:Entity)
                WHERE toLower(e.name) CONTAINS toLower($query)
                RETURN e.name, e.type, e.mention_count, e.first_seen, e.last_seen
                ORDER BY e.mention_count DESC
                LIMIT $limit""",
-            {"query": query, "limit": limit},
+            {"query": query, "limit": limit * 3},  # fetch more for re-ranking
         )
-        return [
+        nodes = [
             GraphNode(
                 name=row[0],
                 type=row[1],
@@ -216,6 +224,29 @@ class FalkorGraphStore:
             )
             for row in result.result_set
         ]
+
+        q_lower = query.lower()
+        q_is_single_word = " " not in q_lower.strip()
+
+        def _rank(node: GraphNode) -> tuple:
+            name_lower = node.name.lower()
+            if name_lower == q_lower:
+                priority = 0  # exact match
+            elif name_lower.startswith(q_lower + " ") or (
+                not q_is_single_word and name_lower.endswith(" " + q_lower)
+            ):
+                # For single-word queries, ends-with is weaker (e.g. "Nhật" in "Sinh nhật")
+                priority = 1
+            elif q_lower + " " in name_lower or " " + q_lower in name_lower:
+                priority = 2  # query is a whole word within a longer name
+            elif q_is_single_word and name_lower.endswith(" " + q_lower):
+                priority = 2  # single-word ends-with: deprioritize ("Sinh nhật" for "Nhật")
+            else:
+                priority = 3  # pure substring (lowest)
+            return (priority, -node.mention_count)
+
+        nodes.sort(key=_rank)
+        return nodes[:limit]
 
     def traverse(self, entity_name: str, max_hops: int = 2, limit: int = 20) -> GraphSearchResult:
         """Multi-hop traversal from a seed entity.

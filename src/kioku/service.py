@@ -206,6 +206,50 @@ class KiokuService:
             "indexed": True,
         }
 
+    @staticmethod
+    def _extract_temporal_range(query: str) -> tuple[str | None, str | None]:
+        """Detect year/month temporal patterns and return (date_from, date_to) range.
+
+        Supports:
+          - "năm 2019"  → 2019-01-01 .. 2019-12-31
+          - "tháng 3/2019" or "tháng 3 năm 2019" → 2019-03-01 .. 2019-03-31
+          - Relative: "năm ngoái", "năm trước" → last year
+          - Relative: "năm nay" → current year
+
+        Returns (None, None) if no temporal pattern found.
+        """
+        now = datetime.now(JST)
+        q = query.lower()
+
+        # Relative year patterns
+        if re.search(r"năm\s+nay", q):
+            y = now.year
+            return f"{y}-01-01", f"{y}-12-31"
+        if re.search(r"năm\s+(?:ngoái|trước)", q):
+            y = now.year - 1
+            return f"{y}-01-01", f"{y}-12-31"
+
+        # Specific month + year: "tháng 3/2019", "tháng 3 năm 2019"
+        m = re.search(r"tháng\s+(\d{1,2})\s*(?:/|năm)\s*(\d{4})", q)
+        if m:
+            month, year = int(m.group(1)), int(m.group(2))
+            if 1 <= month <= 12 and 1900 <= year <= 2100:
+                import calendar
+                last_day = calendar.monthrange(year, month)[1]
+                return f"{year}-{month:02d}-01", f"{year}-{month:02d}-{last_day:02d}"
+
+        # Specific year: "năm 2019"
+        m = re.search(r"(?:năm|year)\s+(\d{4})", q)
+        if not m:
+            # also match bare 4-digit year with surrounding context e.g. "2019"
+            m = re.search(r"\b(20\d{2}|19\d{2})\b", q)
+        if m:
+            y = int(m.group(1))
+            if 1900 <= y <= 2100:
+                return f"{y}-01-01", f"{y}-12-31"
+
+        return None, None
+
     def search_memories(
         self,
         query: str,
@@ -224,6 +268,10 @@ class KiokuService:
                       instead of tokenizing the query. Improves KG precision.
         """
         clean_query = re.sub(r"[^\w\s]", " ", query)
+
+        # Detect temporal patterns and auto-set date range for timeline routing
+        if not date_from and not date_to:
+            date_from, date_to = self._extract_temporal_range(query)
 
         # Auto-extract entities from query if not provided
         if not entities:
