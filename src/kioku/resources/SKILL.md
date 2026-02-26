@@ -31,9 +31,9 @@ source .venv/bin/activate && kioku --version
 
 **If `kioku` is NOT installed or command fails:**
 1. Check for `.venv`. The user might have installed it inside a virtual environment. Try activating it first!
-2. If completely missing, create a venv (macOS blocks global installs):
+2. If completely missing, create a venv (macOS blocks global installs). **CRITICAL:** Use Python 3.12 for ChromaDB compatibility:
    ```bash
-   python3 -m venv .venv
+   python3.12 -m venv .venv
    source .venv/bin/activate
    pip install "kioku-agent-kit[full]"
    ```
@@ -42,6 +42,7 @@ source .venv/bin/activate && kioku --version
 
 ### ⚠️ DANGER: Preserving User Data
 - **NEVER** run commands like `docker compose down -v` or `docker rm -f` on any existing Kioku, Redis, or ChromaDB containers without explicit user permission.
+- **Ignore User DBs**: Do NOT assume a running `falkordb`, `chromadb`, or `redis` container belongs to Kioku unless it is explicitly named `kioku-agent-kit-...` or running on Kioku's isolated ports (8001, 6381, 11435). If you see other DBs, ignore them — they are the user's data. Run `kioku setup` to spin up Kioku's isolated DBs.
 - **Port Conflicts**: If `kioku setup` fails because the default ports (8001, 6381, 11435) are already in use, **DO NOT STOP** the user's existing containers. Instead, dynamically find free ports, edit `docker-compose.yml` and `~/.kioku/config.env` to use the new ports, and run `docker compose up -d`.
 
 ---

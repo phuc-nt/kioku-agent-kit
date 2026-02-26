@@ -71,13 +71,16 @@ curl -fsSL https://raw.githubusercontent.com/phuc-nt/kioku-agent-kit/main/script
 
 Or manually:
 ```bash
-python3 -m venv .venv
+# Strongly recommended: use Python 3.12 for ChromaDB compatibility
+python3.12 -m venv .venv
 source .venv/bin/activate
 pip install "kioku-agent-kit[full]"
 kioku init  # Creates CLAUDE.md and .claude/skills/kioku/SKILL.md
 ```
 
-Then just type `claude` and start! The generated `.claude/skills/kioku/SKILL.md` contains the specific instructions for Claude to dynamically load the virtual environment and configs for each subprocess call.
+Then just type `claude` and start! **Important:** In your first prompt, tell Claude: *"I just ran kioku init. Read .claude/skills/kioku/SKILL.md and complete the setup as instructed."*
+
+The generated `.claude/skills/kioku/SKILL.md` contains the specific instructions for Claude to dynamically load the virtual environment and configs for each subprocess call.
 
 ---
 
