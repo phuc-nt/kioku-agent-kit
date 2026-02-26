@@ -164,11 +164,11 @@ def setup(
         else:
             try:
                 result = subprocess.run(
-                    ["docker", "compose", "-f", str(dc_dst), "up", "-d", "kioku-chromadb", "kioku-falkordb"],
+                    ["docker", "compose", "-f", str(dc_dst), "up", "-d", "kioku-chromadb", "kioku-falkordb", "kioku-ollama"],
                     capture_output=True, text=True, timeout=60,
                 )
                 if result.returncode == 0:
-                    typer.echo("  ✅ kioku-chromadb + kioku-falkordb started")
+                    typer.echo("  ✅ kioku-chromadb + kioku-falkordb + kioku-ollama started")
                 else:
                     typer.echo(f"  ⚠️  Docker error: {result.stderr.strip()[:200]}")
             except subprocess.TimeoutExpired:
@@ -228,7 +228,7 @@ KIOKU_FALKORDB_HOST=localhost
 KIOKU_FALKORDB_PORT=6381
 
 # Embedding
-KIOKU_OLLAMA_BASE_URL=http://localhost:11434
+KIOKU_OLLAMA_BASE_URL=http://localhost:11435
 KIOKU_OLLAMA_MODEL=bge-m3
 """,
             encoding="utf-8",
