@@ -183,20 +183,32 @@ def setup(
         typer.echo("")
         typer.echo("── Step 3: Embedding model (Ollama) ──")
         ollama_model = os.environ.get("KIOKU_OLLAMA_MODEL", "bge-m3")
-        if shutil.which("ollama") is None:
-            typer.echo("  ⚠️  Ollama not found — skipping. Install: https://ollama.com")
+        
+        ollama_cmd_base = []
+        if not no_docker and shutil.which("docker") is not None:
+            # We are using docker, execute inside the container to avoid touching user's local instance
+            ollama_cmd_base = ["docker", "exec", "kioku_ollama", "ollama"]
+        elif shutil.which("ollama") is not None:
+            # Fallback to local
+            ollama_cmd_base = ["ollama"]
+            
+        if not ollama_cmd_base:
+            typer.echo("  ⚠️  Docker and local Ollama not found — skipping.")
             typer.echo("      Kioku will use fake embeddings (BM25 still works).")
         else:
-            check = subprocess.run(["ollama", "list"], capture_output=True, text=True)
+            check = subprocess.run([*ollama_cmd_base, "list"], capture_output=True, text=True)
             if ollama_model in check.stdout:
                 typer.echo(f"  ✅ Model {ollama_model} already available")
             else:
-                typer.echo(f"  Pulling {ollama_model} (may take a few minutes)...")
-                result = subprocess.run(["ollama", "pull", ollama_model], timeout=600)
-                if result.returncode == 0:
-                    typer.echo(f"  ✅ Model {ollama_model} ready")
-                else:
-                    typer.echo(f"  ⚠️  Pull failed — run: ollama pull {ollama_model}")
+                typer.echo(f"  Pulling {ollama_model} inside isolated environment (may take a few minutes)...")
+                try:
+                    result = subprocess.run([*ollama_cmd_base, "pull", ollama_model], timeout=600)
+                    if result.returncode == 0:
+                        typer.echo(f"  ✅ Model {ollama_model} ready")
+                    else:
+                        typer.echo(f"  ⚠️  Pull failed — run manually: {' '.join(ollama_cmd_base)} pull {ollama_model}")
+                except subprocess.TimeoutExpired:
+                    typer.echo("  ⚠️  Pull timed out. Might still be downloading in background.")
     else:
         typer.echo("  ⏭️  Skipped model pull (--no-model)")
 
