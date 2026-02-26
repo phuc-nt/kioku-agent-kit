@@ -10,10 +10,20 @@ This file tells you how to use it. Read it once at the start of each session.
 Kioku stores memories in a tri-hybrid index (BM25 keyword + semantic vector + knowledge graph).
 You interact via CLI commands. All data is local, namespaced by `KIOKU_USER_ID`.
 
-**Check setup:**
+## Setup & Verification (CRITICAL FIRST STEP)
+
+Before doing anything, verify Kioku is available:
 ```bash
-kioku --version && echo "KIOKU_USER_ID=$KIOKU_USER_ID"
+kioku --version
 ```
+
+**If `kioku` is NOT installed or command fails:**
+1. Install it: `pip install kioku-agent-kit[full]`
+2. Initialize it: `kioku setup --user-id personal`
+   *(This starts ChromaDB & FalkorDB via Docker, downloads Ollama models, and creates `~/.kioku/config.env`)*
+3. **Important:** Read `~/.kioku/config.env` and ask the User to provide an Anthropic API Key if `KIOKU_ANTHROPIC_API_KEY` is empty. You must export this key in your environment or save it to `.env` for entity extraction to work.
+
+If Docker or Ollama fails to start during setup, don't worry. Kioku has graceful degradation and works fine with BM25 keyword search only.
 
 ---
 

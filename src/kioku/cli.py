@@ -129,8 +129,8 @@ def setup(
     To get template files for Claude Code / Cursor:
 
     \b
-    kioku setup --claude > CLAUDE.md    # add to your project root
-    kioku setup --skill  > SKILL.md     # add to your skills directory
+    kioku setup --claude > CLAUDE.md
+    mkdir -p .claude/skills/kioku && kioku setup --skill > .claude/skills/kioku/SKILL.md
     """
     import importlib.resources as pkg_resources
 
@@ -263,7 +263,7 @@ KIOKU_OLLAMA_MODEL=bge-m3
     typer.echo("")
     typer.echo("For Claude Code / Cursor:")
     typer.echo("  kioku setup --claude > CLAUDE.md    # copy to your project root")
-    typer.echo("  kioku setup --skill  > SKILL.md     # copy to skills/ directory")
+    typer.echo("  mkdir -p .claude/skills/kioku && kioku setup --skill > .claude/skills/kioku/SKILL.md")
     typer.echo("")
 
 
