@@ -73,9 +73,9 @@ echo "── Step 2: Starting databases ──"
 
 if [[ "$HAS_DOCKER" == "yes" ]]; then
   if [[ -f "$PROJECT_DIR/docker-compose.yml" ]]; then
-    info "Starting ChromaDB + FalkorDB..."
+    info "Starting kioku-chromadb + kioku-falkordb..."
     cd "$PROJECT_DIR"
-    docker compose up -d chromadb falkordb 2>&1 | tail -3
+    docker compose up -d kioku-chromadb kioku-falkordb 2>&1 | tail -3
     sleep 3
     ok "Databases started"
   else
@@ -123,9 +123,9 @@ KIOKU_ANTHROPIC_API_KEY=
 
 # Database endpoints (defaults match docker-compose.yml)
 KIOKU_CHROMA_HOST=localhost
-KIOKU_CHROMA_PORT=8000
+KIOKU_CHROMA_PORT=8001
 KIOKU_FALKORDB_HOST=localhost
-KIOKU_FALKORDB_PORT=6379
+KIOKU_FALKORDB_PORT=6381
 
 # Embedding model (Ollama)
 KIOKU_OLLAMA_BASE_URL=http://localhost:11434

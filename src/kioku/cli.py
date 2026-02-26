@@ -164,11 +164,11 @@ def setup(
         else:
             try:
                 result = subprocess.run(
-                    ["docker", "compose", "-f", str(dc_dst), "up", "-d", "chromadb", "falkordb"],
+                    ["docker", "compose", "-f", str(dc_dst), "up", "-d", "kioku-chromadb", "kioku-falkordb"],
                     capture_output=True, text=True, timeout=60,
                 )
                 if result.returncode == 0:
-                    typer.echo("  ✅ ChromaDB + FalkorDB started")
+                    typer.echo("  ✅ kioku-chromadb + kioku-falkordb started")
                 else:
                     typer.echo(f"  ⚠️  Docker error: {result.stderr.strip()[:200]}")
             except subprocess.TimeoutExpired:
@@ -223,9 +223,9 @@ KIOKU_ANTHROPIC_API_KEY=
 
 # Database endpoints (match docker-compose defaults)
 KIOKU_CHROMA_HOST=localhost
-KIOKU_CHROMA_PORT=8000
+KIOKU_CHROMA_PORT=8001
 KIOKU_FALKORDB_HOST=localhost
-KIOKU_FALKORDB_PORT=6379
+KIOKU_FALKORDB_PORT=6381
 
 # Embedding
 KIOKU_OLLAMA_BASE_URL=http://localhost:11434
