@@ -123,20 +123,31 @@ class KeywordIndex:
             List of FTSResult sorted by relevance (best first).
         """
         cur = self.conn.cursor()
+        
+        # Escape FTS5 special characters by wrapping the entire query in double quotes.
+        # This prevents words like 'Tech-Verse' from throwing "no such column: Verse".
+        safe_query = '"' + query.replace('"', '""') + '"'
+        
         # FTS5 match with BM25 ranking (negative = more relevant)
-        cur.execute(
-            """
-            SELECT m.id, m.content, m.date, m.mood, m.timestamp, rank
-            FROM memory_fts
-            JOIN memories m ON m.id = memory_fts.rowid
-            WHERE memory_fts MATCH ?
-            ORDER BY rank
-            LIMIT ?
-            """,
-            (query, limit),
-        )
+        try:
+            cur.execute(
+                """
+                SELECT m.id, m.content, m.date, m.mood, m.timestamp, rank
+                FROM memory_fts
+                JOIN memories m ON m.id = memory_fts.rowid
+                WHERE memory_fts MATCH ?
+                ORDER BY rank
+                LIMIT ?
+                """,
+                (safe_query, limit),
+            )
+            rows = cur.fetchall()
+        except sqlite3.OperationalError:
+            # Fallback if there's still somehow an issue with the query syntax
+            return []
+            
         results = []
-        for row in cur.fetchall():
+        for row in rows:
             results.append(
                 FTSResult(
                     rowid=row[0],
