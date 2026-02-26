@@ -60,16 +60,22 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-### Option 4: Claude Code / Cursor (CLI agent mode)
+### Option 4: Claude Code (CLI agent mode)
+
+If you have a blank project and want Claude Code to use Kioku:
 
 ```bash
-pip install kioku-agent-kit[full]
-docker compose up -d
-export KIOKU_USER_ID=myproject
-export KIOKU_ANTHROPIC_API_KEY=sk-ant-...
+# 1-liner to bootstrap any project
+curl -fsSL https://raw.githubusercontent.com/phuc-nt/kioku-agent-kit/main/scripts/bootstrap.sh | bash
 ```
 
-Copy `skills/kioku/SKILL.md` to your project's skills directory — Claude Code will automatically discover and use Kioku for memory operations.
+Or manually:
+```bash
+pip install kioku-agent-kit[full]
+kioku init  # Creates CLAUDE.md and .claude/skills/kioku/SKILL.md
+```
+
+Then just type `claude` and start!
 
 ---
 

@@ -112,8 +112,6 @@ def setup(
         Path.cwd(), "--dir", "-d",
         help="Directory to generate docker-compose.yml into (default: current dir).",
     ),
-    skill: bool = typer.Option(False, "--skill", help="Print SKILL.md to stdout (for Claude Code / Cursor)."),
-    claude: bool = typer.Option(False, "--claude", help="Print CLAUDE.agent.md to stdout (copy to project root)."),
     no_docker: bool = typer.Option(False, "--no-docker", help="Skip Docker database startup."),
     no_model: bool = typer.Option(False, "--no-model", help="Skip Ollama model pull."),
 ) -> None:
@@ -129,23 +127,11 @@ def setup(
     To get template files for Claude Code / Cursor:
 
     \b
-    kioku setup --claude > CLAUDE.md
-    mkdir -p .claude/skills/kioku && kioku setup --skill > .claude/skills/kioku/SKILL.md
+    kioku init    # sets up CLAUDE.md and .claude/skills/kioku/SKILL.md
     """
     import importlib.resources as pkg_resources
 
     RESOURCES = Path(__file__).parent / "resources"
-
-    # ── Template-only output modes ──
-    if skill:
-        skill_file = RESOURCES / "SKILL.md"
-        typer.echo(skill_file.read_text(encoding="utf-8"))
-        return
-
-    if claude:
-        claude_file = RESOURCES / "CLAUDE.agent.md"
-        typer.echo(claude_file.read_text(encoding="utf-8"))
-        return
 
     # ── Full setup ──
     resolved_user_id = user_id or os.environ.get("KIOKU_USER_ID", "personal")
@@ -262,8 +248,34 @@ KIOKU_OLLAMA_MODEL=bge-m3
     typer.echo('  kioku search "memory"')
     typer.echo("")
     typer.echo("For Claude Code / Cursor:")
-    typer.echo("  kioku setup --claude > CLAUDE.md    # copy to your project root")
-    typer.echo("  mkdir -p .claude/skills/kioku && kioku setup --skill > .claude/skills/kioku/SKILL.md")
+    typer.echo("  kioku init    # automatically sets up CLAUDE.md and skills directory")
+    typer.echo("")
+
+
+@app.command()
+def init() -> None:
+    """Initialize Kioku in the current project for Claude Code / Cursor."""
+    import importlib.resources as pkg_resources
+    from pathlib import Path
+
+    RESOURCES = Path(__file__).parent / "resources"
+
+    # Write CLAUDE.md
+    claude_dst = Path.cwd() / "CLAUDE.md"
+    claude_dst.write_text((RESOURCES / "CLAUDE.agent.md").read_text(encoding="utf-8"))
+
+    # Write SKILL
+    skill_dir = Path.cwd() / ".claude" / "skills" / "kioku"
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    skill_dst = skill_dir / "SKILL.md"
+    skill_dst.write_text((RESOURCES / "SKILL.md").read_text(encoding="utf-8"))
+
+    typer.echo("")
+    typer.echo(f"✅ Created: {claude_dst}")
+    typer.echo(f"✅ Created: {skill_dst}")
+    typer.echo("")
+    typer.echo("Claude Code and Cursor will now use Kioku automatically!")
+    typer.echo("Simply type 'claude' and start asking it to remember things.")
     typer.echo("")
 
 
