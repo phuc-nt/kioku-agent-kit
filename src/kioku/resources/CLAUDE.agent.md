@@ -27,6 +27,7 @@ kioku --version
 - **NEVER** run commands like `docker compose down -v` or `docker rm -f` on any existing Kioku, Redis, or ChromaDB containers without explicit user permission.
 - The user might have existing containers (`kioku-mcp-falkordb-1`, `chromadb`, etc.) that hold their **actual data**.
 - Only run `kioku setup` to initialize newly installed Kioku instances (it uses non-conflicting container names and ports).
+- **Port Conflicts**: If `kioku setup` fails because the default ports (8001, 6381, 11435) are already in use, **DO NOT STOP** the user's existing containers. Instead, dynamically find free ports, edit `docker-compose.yml` and `~/.kioku/config.env` to use the new ports, and run `docker compose up -d`.
 
 If Docker or Ollama fails to start during setup, don't worry. Kioku has graceful degradation and works fine with BM25 keyword search only.
 
