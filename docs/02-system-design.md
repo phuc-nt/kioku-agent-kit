@@ -160,7 +160,7 @@ def search_memories(query, limit=10):
 
 ```yaml
 services:
-  kioku-mcp:        # FastMCP server
+  kioku-agent-kit:        # FastMCP server
   falkordb:          # Graph DB, port 6379
   chromadb:          # Vector DB, port 8000
   ollama:            # Embedding model (optional, có thể dùng host)

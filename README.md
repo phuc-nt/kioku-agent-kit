@@ -71,7 +71,7 @@ curl -fsSL https://raw.githubusercontent.com/phuc-nt/kioku-agent-kit/main/script
 
 Or manually:
 ```bash
-pip install kioku-agent-kit[full]
+pip install "kioku-agent-kit[full]"
 kioku init  # Creates CLAUDE.md and .claude/skills/kioku/SKILL.md
 ```
 
@@ -86,7 +86,7 @@ Then just type `claude` and start!
 | `pip install kioku-agent-kit[cli]` | CLI + BM25 keyword search |
 | `pip install kioku-agent-kit[cli,vector]` | + semantic search (ChromaDB + Ollama) |
 | `pip install kioku-agent-kit[mcp]` | MCP server only |
-| `pip install kioku-agent-kit[full]` | Everything: CLI + MCP + vector + graph |
+| `pip install "kioku-agent-kit[full]"` | Everything: CLI + MCP + vector + graph |
 
 ---
 

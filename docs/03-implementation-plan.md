@@ -3,7 +3,7 @@
 ## Project Structure
 
 ```
-kioku-mcp/
+kioku-agent-kit/
 ├── docs/                           # Documentation (you are here)
 ├── docker-compose.yml              # FalkorDB + ChromaDB + Ollama + MCP server
 ├── Dockerfile                      # MCP server image

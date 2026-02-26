@@ -7,7 +7,7 @@ Mọi dữ liệu cốt lõi (Single Source of Truth) của Kioku Agent thông q
 
 Đây là cách dùng khi anh muốn chuyển đổi máy, khởi tạo lại từ một hệ thống database trắng trơn hoặc bị corrupt toàn bộ DB.
 1. Đảm bảo OpenClaw Gateway/Bot đang dừng tạm thời (hoặc ít nhất không thao tác).
-2. Chạy lệnh (từ thư mục gốc `kioku-mcp`):
+2. Chạy lệnh (từ thư mục gốc `kioku-agent-kit`):
 
 ```bash
 KIOKU_USER_ID=telegram uv run python phucnt_telegram_kioku_backup/restore.py
@@ -25,7 +25,7 @@ KIOKU_USER_ID=telegram uv run python phucnt_telegram_kioku_backup/restore.py
 Dùng khi hệ thống anh đang chạy ngon lành nhưng vô tình có 1 dịch vụ bị tắt (ví dụ Docker tắt khiến Ollama/FalkorDB không chạy), khiến dữ liệu của **Ngay Hôm Nay (2026-02-23)** bị "miss" ở tầng Vector/Graph, trong khi file Markdown (Single Source Of Truth) trên ổ cứng vẫn ghi nhận.
 
 1. Hãy bật lại các công cụ cần thiết (Docker, Ollama, FalkorDB).
-2. Chạy lệnh (từ thư mục gốc `kioku-mcp`):
+2. Chạy lệnh (từ thư mục gốc `kioku-agent-kit`):
 
 ```bash
 KIOKU_USER_ID=telegram uv run python phucnt_telegram_kioku_backup/restore_today.py

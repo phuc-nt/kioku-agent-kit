@@ -80,10 +80,10 @@ KIOKU_CHROMA_PERSIST_DIR=   # default: ~/.kioku/data/chroma
 
 **Install options:**
 ```bash
-pip install kioku-mcp[cli]        # CLI only
-pip install kioku-mcp[mcp]        # MCP server only
-pip install kioku-mcp[cli,vector] # CLI + semantic search
-pip install kioku-mcp[full]       # Everything
+pip install kioku-agent-kit[cli]        # CLI only
+pip install kioku-agent-kit[mcp]        # MCP server only
+pip install kioku-agent-kit[cli,vector] # CLI + semantic search
+pip install kioku-agent-kit[full]       # Everything
 ```
 
 ---
@@ -97,7 +97,7 @@ pip install kioku-mcp[full]       # Everything
 - [x] Tạo `docker-compose.full.yml` — Kioku + ChromaDB server + FalkorDB + Ollama
 - [x] Cập nhật `.env.example` với tất cả `KIOKU_*` env vars mới
 - [x] Docker build thành công, image size: **1.07GB** (< 2GB target)
-- [x] Container CLI verified: `docker run --rm kioku-mcp:test cli --help` works
+- [x] Container CLI verified: `docker run --rm kioku-agent-kit:test cli --help` works
 
 **Docker usage:**
 ```bash

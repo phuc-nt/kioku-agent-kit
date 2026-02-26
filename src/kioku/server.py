@@ -6,7 +6,7 @@ try:
     from fastmcp import FastMCP
 except ImportError:
     raise ImportError(
-        "FastMCP is required to run the MCP server. Install it with: pip install kioku-mcp[mcp]"
+        "FastMCP is required to run the MCP server. Install it with: pip install kioku-agent-kit[mcp]"
     )
 
 from kioku.service import KiokuService
