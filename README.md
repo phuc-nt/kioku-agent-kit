@@ -71,11 +71,13 @@ curl -fsSL https://raw.githubusercontent.com/phuc-nt/kioku-agent-kit/main/script
 
 Or manually:
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 pip install "kioku-agent-kit[full]"
 kioku init  # Creates CLAUDE.md and .claude/skills/kioku/SKILL.md
 ```
 
-Then just type `claude` and start!
+Then just type `claude` and start! The generated `.claude/skills/kioku/SKILL.md` contains the specific instructions for Claude to dynamically load the virtual environment and configs for each subprocess call.
 
 ---
 
