@@ -23,6 +23,11 @@ kioku --version
    *(This starts ChromaDB & FalkorDB via Docker, downloads Ollama models, and creates `~/.kioku/config.env`)*
 3. **Important:** Read `~/.kioku/config.env` and ask the User to provide an Anthropic API Key if `KIOKU_ANTHROPIC_API_KEY` is empty. You must export this key in your environment or save it to `.env` for entity extraction to work.
 
+### ⚠️ DANGER: Preserving User Data
+- **NEVER** run commands like `docker compose down -v` or `docker rm -f` on any existing Kioku, Redis, or ChromaDB containers without explicit user permission.
+- The user might have existing containers (`kioku-mcp-falkordb-1`, `chromadb`, etc.) that hold their **actual data**.
+- Only run `kioku setup` to initialize newly installed Kioku instances (it uses non-conflicting container names and ports).
+
 If Docker or Ollama fails to start during setup, don't worry. Kioku has graceful degradation and works fine with BM25 keyword search only.
 
 ---

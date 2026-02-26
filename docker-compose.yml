@@ -1,34 +1,31 @@
 services:
-  kioku-falkordb:
+  falkordb:
     image: falkordb/falkordb:latest
-    container_name: kioku_falkordb
     ports:
-      - "6381:6379"
+      - "6379:6379"
     volumes:
-      - kioku_falkordb_data:/data
+      - falkordb_data:/data
     restart: unless-stopped
 
-  kioku-chromadb:
+  chromadb:
     image: chromadb/chroma:latest
-    container_name: kioku_chromadb
     ports:
-      - "8001:8000"
+      - "8000:8000"
     volumes:
-      - kioku_chromadb_data:/chroma/chroma
+      - chroma_data:/chroma/chroma
     environment:
       - ANONYMIZED_TELEMETRY=false
     restart: unless-stopped
 
-  kioku-ollama:
+  ollama:
     image: ollama/ollama:latest
-    container_name: kioku_ollama
     ports:
-      - "11435:11434"
+      - "11434:11434"
     volumes:
-      - kioku_ollama_data:/root/.ollama
+      - ollama_data:/root/.ollama
     restart: unless-stopped
 
 volumes:
-  kioku_falkordb_data:
-  kioku_chromadb_data:
-  kioku_ollama_data:
+  falkordb_data:
+  chroma_data:
+  ollama_data:
