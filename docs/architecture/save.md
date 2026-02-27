@@ -1,6 +1,6 @@
 # Save Architecture — How It Works
 
-> Last updated: 2026-02-24 (Phase 8)
+> Last updated: 2026-02-26 (v0.2.10)
 
 ## Overview
 
@@ -57,15 +57,15 @@ Response: {status, date, mood, tags, event_time, indexed}
 - **Key role:** All search results are **hydrated** from SQLite to ensure consistent text
 
 ### 3. ChromaDB (Vector Store)
-- **Host:** `localhost:8000` (server mode) or embedded
-- **Collection:** `kioku_{user_id}`
-- **Embedding:** Ollama `nomic-embed-text` (768-dim)
+- **Host:** `localhost:8001` (Docker: `kioku-chromadb`) or embedded
+- **Collection:** `memories_{user_id}` (default: `memories`)
+- **Embedding:** Ollama `bge-m3` (1024-dim)
 - **Purpose:** Semantic similarity search
 - **Graceful degradation:** If ChromaDB/Ollama unavailable, save continues without vector indexing
 
 ### 4. FalkorDB (Knowledge Graph)
-- **Host:** `localhost:6379`
-- **Graph name:** `kioku_{user_id}`
+- **Host:** `localhost:6381` (Docker: `kioku-falkordb`)
+- **Graph name:** `kioku_kg_{user_id}` (default: `kioku_kg`)
 - **Schema:**
   ```
   (:Entity {name, type, mention_count})

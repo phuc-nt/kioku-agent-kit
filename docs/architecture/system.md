@@ -1,6 +1,6 @@
 # System Architecture — Kioku Overview
 
-> Last updated: 2026-02-24 (Phase 8)
+> Last updated: 2026-02-26 (v0.2.10)
 
 ## Overview
 
@@ -62,13 +62,13 @@ Kioku (記憶) is a personal memory agent that stores and retrieves memories usi
 │  │ • Doc store │  │ • Vec search │  │ • Relationships        │ │
 │  │ • Hydration │  │ • Metadata   │  │ • Graph traversal      │ │
 │  │             │  │              │  │ • Shortest paths       │ │
-│  │ kioku.db    │  │ :8000        │  │ :6379                  │ │
+│  │ kioku_fts.db│  │ :8001        │  │ :6381                  │ │
 │  └─────────────┘  └──────────────┘  └────────────────────────┘ │
 │                                                                 │
 │  ┌─────────────────────────────────────┐  ┌──────────────────┐ │
 │  │ Markdown Files (Source of Truth)    │  │ Ollama (Embed)   │ │
-│  │ ~/.kioku/users/{id}/memory/*.md     │  │ nomic-embed-text │ │
-│  └─────────────────────────────────────┘  │ :11434           │ │
+│  │ ~/.kioku/users/{id}/memory/*.md     │  │ bge-m3 (1024d)   │ │
+│  └─────────────────────────────────────┘  │ :11435 (Docker)  │ │
 │                                           └──────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -146,10 +146,11 @@ All settings via environment variables or `.env`:
 | `KIOKU_DATA_DIR` | `~/.kioku` | Root data directory |
 | `KIOKU_ANTHROPIC_API_KEY` | — | Claude API for entity extraction |
 | `KIOKU_CHROMA_HOST` | `localhost` | ChromaDB server |
-| `KIOKU_CHROMA_PORT` | `8000` | ChromaDB port |
-| `KIOKU_FALKOR_HOST` | `localhost` | FalkorDB server |
-| `KIOKU_FALKOR_PORT` | `6379` | FalkorDB port |
-| `KIOKU_OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama for embeddings |
+| `KIOKU_CHROMA_PORT` | `8001` | ChromaDB port (Docker: kioku-chromadb) |
+| `KIOKU_FALKORDB_HOST` | `localhost` | FalkorDB server |
+| `KIOKU_FALKORDB_PORT` | `6381` | FalkorDB port (Docker: kioku-falkordb) |
+| `KIOKU_OLLAMA_BASE_URL` | `http://localhost:11435` | Ollama for embeddings (Docker: kioku-ollama) |
+| `KIOKU_OLLAMA_MODEL` | `bge-m3` | Embedding model (1024-dim) |
 
 ## Graceful Degradation
 
@@ -181,4 +182,4 @@ Each user gets isolated storage:
 └── ...
 ```
 
-ChromaDB and FalkorDB collections are also namespaced: `kioku_{user_id}`.
+ChromaDB and FalkorDB collections are also namespaced: `memories_{user_id}` and `kioku_kg_{user_id}`.

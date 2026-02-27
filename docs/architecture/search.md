@@ -1,6 +1,6 @@
 # Search Architecture — How It Works
 
-> Last updated: 2026-02-24 (Phase 8)
+> Last updated: 2026-02-26 (v0.2.10)
 
 ## Overview
 
@@ -107,12 +107,14 @@ User Reply
 ### BM25 (SQLite FTS5)
 - **Strength:** Exact keyword matches, entity name lookups
 - **In entity mode:** Searches using entity names as keywords
-- **Observed contribution:** ~60% of results for specific entity queries
+- **Safe query:** Input is wrapped in double-quotes to prevent FTS5 syntax errors (e.g. `Tech-Verse` → `"Tech-Verse"`)
+- **Observed contribution:** ~5% with bge-m3 (was 60% with nomic-embed-text — semantic search took over)
 
 ### Vector (ChromaDB + Ollama)
 - **Strength:** Semantic similarity, conceptual queries
+- **Model:** `bge-m3` (1024-dim, multilingual, strong on Vietnamese)
 - **In entity mode:** Searches original query, then filters to results mentioning entities
-- **Observed contribution:** ~16% of results, strong for mood/conceptual queries
+- **Observed contribution:** ~48% of results (significant upgrade from ~16% with nomic-embed-text)
 
 ### Graph (FalkorDB)
 - **Strength:** Relationship discovery, multi-hop traversal
@@ -137,7 +139,7 @@ graph_evidence:  top-K by weight → fills remaining budget
 
 Graph evidence is **deduplicated** against text results using content_hash. Nodes and connections are lightweight metadata and always included.
 
-## Real-World Performance (2026-02-24)
+## Real-World Performance (2026-02-25, bge-m3)
 
 ### Query: "Nguyễn Trọng Phúc profile gia đình công việc BrSE TBV kỹ năng con Phong Vy"
 
@@ -148,8 +150,13 @@ Graph evidence is **deduplicated** against text results using content_hash. Node
 | Graph nodes | 74 |
 | Graph evidence | 10 (unique, deduplicated) |
 | Connections | 8 paths (Phúc↔BrSE, Phong↔Vy, etc.) |
-| Response size | 19,096 chars JSON |
-| User wait time | ~25s total |
+
+### Search Source Distribution (bge-m3 benchmark):
+| Source | Contribution | Notes |
+|---|---|---|
+| Vector | **48%** | +21pp vs nomic-embed-text |
+| Graph | ~24% | Stable |
+| BM25 | ~5% | Semantic overtook keyword |
 
 ### Latency Breakdown:
 | Phase | Time | % |
