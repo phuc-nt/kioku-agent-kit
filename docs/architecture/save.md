@@ -42,6 +42,45 @@ User shares info / Agent calls save
 Response: {status, date, mood, tags, event_time, indexed}
 ```
 
+## Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant A as Agent / CLI
+    participant S as KiokuService
+    participant EX as ClaudeExtractor
+    participant G as FalkorDB
+    participant MD as Markdown
+    participant DB as SQLite FTS5
+    participant CH as ChromaDB
+
+    A->>S: save_memory(text, mood, tags)
+    S->>S: SHA256(text) → content_hash
+
+    S->>G: get_canonical_entities(limit=50)
+    G-->>S: [canonical entity names]
+    S->>EX: extract(text, context_entities, processing_date)
+    Note over EX: Claude Haiku extracts:<br/>entities, relationships, event_time
+    EX-->>S: ExtractionResult
+
+    alt Entities extracted
+        S->>G: upsert(entities, relationships, source_hash)
+        G-->>S: OK
+    end
+
+    S->>MD: save_entry(memory_dir, text, mood, tags, event_time)
+    MD-->>S: Entry{timestamp}
+
+    S->>DB: index(text, date, timestamp, mood, content_hash, event_time)
+    DB-->>S: rowid
+
+    S->>CH: add(text, embedding, metadata)
+    Note over CH: Ollama bge-m3 generates<br/>1024-dim vector
+    CH-->>S: OK
+
+    S-->>A: {status, timestamp, date, mood, tags, event_time, indexed}
+```
+
 ## Storage Engines
 
 ### 1. Markdown Files (Source of Truth)

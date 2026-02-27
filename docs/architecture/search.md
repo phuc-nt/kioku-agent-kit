@@ -61,6 +61,72 @@ Agent (LLM) — Synthesize Answer
 User Reply
 ```
 
+## Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant A as Agent / CLI
+    participant S as KiokuService
+    participant EX as ClaudeExtractor
+    participant G as FalkorDB
+    participant BM as SQLite FTS5
+    participant V as ChromaDB
+    participant RR as RRF Reranker
+
+    A->>S: search_memories(query, limit)
+
+    S->>S: _extract_temporal_range(query)
+    Note over S: Detect "năm 2019", "tháng 3",<br/>"năm ngoái" → date_from/date_to
+
+    alt entities not provided
+        S->>G: get_canonical_entities(limit=50)
+        G-->>S: [PERSON/PLACE/EVENT entities + aliases]
+        S->>EX: LLM call (search_prompt + entity map)
+        Note over EX: Claude Haiku maps query<br/>→ canonical entity names
+        EX-->>S: ["entity1", "entity2", ...]
+    end
+
+    par Entity-focused tri-hybrid search
+        S->>BM: bm25_search(entity_names_as_keywords)
+        BM-->>S: [FTSResult x limit*3]
+    and
+        S->>V: vector_search(original_query)
+        V-->>S: [VecResult x limit*5]
+        S->>S: filter results containing entity names
+    and
+        S->>G: graph_search(query, entities_as_seeds)
+        G-->>S: [GraphResult x limit*3]
+    end
+
+    S->>RR: rrf_rerank(bm25, vector, graph, limit)
+    RR-->>S: top-N fused results
+
+    opt date_from or date_to set
+        S->>S: filter results by date range
+    end
+
+    S->>BM: get_by_hashes(content_hashes)
+    BM-->>S: {hash: {text, date, mood, ...}}
+    Note over S: Hydrate — replace all content<br/>with authoritative SQLite text
+
+    opt entities provided
+        loop for each entity
+            S->>G: traverse(entity, max_hops=2)
+            G-->>S: {nodes, edges}
+        end
+        S->>S: deduplicate edges vs text_hashes
+        S->>BM: get_by_hashes(edge source_hashes)
+        BM-->>S: hydrated edge evidence
+
+        opt len(entities) >= 2
+            S->>G: find_path(entityA, entityB)
+            G-->>S: {paths}
+        end
+    end
+
+    S-->>A: {query, entities_used, count, results, graph_context, connections}
+```
+
 ## Response Structure
 
 ```json
